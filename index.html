@@ -15,8 +15,9 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" crossorigin="anonymous">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"
+        onload="window.__katexLoaded=true" onerror="window.__katexFailed=true"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -647,10 +648,26 @@ window.addEventListener('keydown',e=>{
 /* derive a short title per card from its category for the band */
 CARDS.forEach(c=>{ c.title = c.cat; });
 
-/* boot — wait for KaTeX to be present */
+/* Is KaTeX actually usable? (loaded AND able to produce real output) */
+function katexWorks(){
+  if(!window.katex || typeof window.katex.render!=='function') return false;
+  try{
+    const probe=document.createElement('span');
+    window.katex.render('x^2', probe, {throwOnError:false});
+    return !!probe.querySelector('.katex');
+  }catch(e){ return false; }
+}
+
+/* boot — build the deck immediately, then render once KaTeX is verified working.
+   Retries for a while; if it never loads (e.g. CDN blocked offline) the cards
+   still show their LaTeX source rather than nothing. */
 (function boot(){
-  if(!window.katex){ return setTimeout(boot,40); }
-  buildOrder(false); buildChips(); render(1);
+  buildOrder(false); buildChips();
+  let tries=0;
+  (function waitForKatex(){
+    if(katexWorks() || window.__katexFailed || tries>150){ render(1); return; }
+    tries++; setTimeout(waitForKatex,40);
+  })();
 })();
 
 /* register service worker for offline use (silently ignored in the chat preview) */

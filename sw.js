@@ -5,7 +5,7 @@
    Load the app once on wifi and it works fully offline thereafter.
    Bump CACHE_VERSION whenever you change the app to force an update.
    ===================================================================== */
-const CACHE_VERSION = 'eqn-deck-v2';
+const CACHE_VERSION = 'eqn-deck-v3';
 
 // App shell — same-origin files plus the two big CDN assets.
 const CORE = [
@@ -22,17 +22,14 @@ const CORE = [
 ];
 
 // Precache on install. allSettled so one missing asset can't abort the install.
+// Use normal (CORS) requests for the CDN assets — cdnjs and Google Fonts both
+// send Access-Control-Allow-Origin, so we get full, executable responses rather
+// than opaque ones (opaque cross-origin scripts don't run reliably in the iOS
+// standalone web view, which showed equations as raw LaTeX).
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_VERSION);
-    await Promise.allSettled(
-      CORE.map((url) => {
-        const req = url.startsWith('http')
-          ? new Request(url, { mode: 'no-cors' })   // opaque, but cacheable & usable offline
-          : url;
-        return cache.add(req);
-      })
-    );
+    await Promise.allSettled(CORE.map((url) => cache.add(url)));
     self.skipWaiting();
   })());
 });
