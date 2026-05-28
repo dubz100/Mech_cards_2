@@ -302,7 +302,7 @@ const CARDS = [
     a:"(1) Shear stress τ = Tr/J at the outer surface vs the material shear strength, and (2) angular twist θ = TL/GJ staying small enough that the rotor stays aligned. Hollow tubes give high J per mass for both." },
 
   { cat:"Failure", eq:"\\sigma_{max}=K_t\\,\\sigma_{nom},\\quad \\text{FoS}=\\dfrac{\\sigma_{fail}}{\\sigma_{actual}}",
-    terms:[["K_t","stress concentration factor"],["\\sigma_{nom","nominal stress"],["\\sigma_{fail}","failure stress"]],
+    terms:[["K_t","stress concentration factor"],["\\sigma_{nom}","nominal stress"],["\\sigma_{fail}","failure stress"]],
     note:"Holes, fillets and notches multiply local stress. Fatigue cracks almost always start at a concentration on the surface.",
     q:"Where would you expect a repeatedly-flexed drone arm to crack first, and how do you mitigate it?",
     a:"At the highest stress concentration — typically the bolt hole or the sharp fillet where the arm meets the body. Mitigate with generous fillet radii, polished surfaces, and avoiding holes in high-stress regions to lower K_t." },
@@ -519,7 +519,7 @@ function buildOrder(shuffle){
 const stage = document.getElementById('stage');
 const counter = document.getElementById('counter');
 
-function katex(tex, el, display){
+function renderMath(tex, el, display){
   try{ window.katex.render(tex, el, {throwOnError:false, displayMode:!!display}); }
   catch(e){ el.textContent = tex; }
 }
@@ -569,11 +569,11 @@ function render(direction){
     </div>`;
 
   // render maths
-  katex(c.eq, document.getElementById('eqn'), true);
+  renderMath(c.eq, document.getElementById('eqn'), true);
   const tEl = document.getElementById('terms');
   c.terms.forEach(([sym,def])=>{
     const row=document.createElement('div'); row.className='term';
-    const s=document.createElement('span'); s.className='sym'; katex(sym,s,false);
+    const s=document.createElement('span'); s.className='sym'; renderMath(sym,s,false);
     const d=document.createElement('span'); d.className='def'; d.textContent=def;
     row.append(s,d); tEl.append(row);
   });

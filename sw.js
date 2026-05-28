@@ -5,7 +5,7 @@
    Load the app once on wifi and it works fully offline thereafter.
    Bump CACHE_VERSION whenever you change the app to force an update.
    ===================================================================== */
-const CACHE_VERSION = 'eqn-deck-v1';
+const CACHE_VERSION = 'eqn-deck-v2';
 
 // App shell — same-origin files plus the two big CDN assets.
 const CORE = [
