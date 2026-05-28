@@ -1,0 +1,710 @@
+<!-- =====================================================================
+     EQUATION DECK — interview flashcards for mechanical / drone interception
+     Single-file web app. No build step. Deployable as-is to any static host.
+     To turn this into a home-screen PWA on iPhone, see DEPLOY notes at bottom.
+     ===================================================================== -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<!-- iOS home-screen app behaviour -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Eqn Deck">
+<meta name="theme-color" content="#0e1726">
+<title>Equation Deck</title>
+<!-- PWA: these 404 in the chat preview (harmless); they resolve once deployed alongside the files -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"
+        onload="window.__katexLoaded=true" onerror="window.__katexFailed=true"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#0e1726; --bg2:#0a111d; --grid:rgba(120,160,220,.07);
+    --stock:#f7f4ec; --stock-edge:#e7e0d0; --ink:#1b2433; --ink-soft:#5a6577;
+    --disp:'Bricolage Grotesque',-apple-system,system-ui,sans-serif;
+    --mono:'Space Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden}
+  body{
+    font-family:var(--disp); color:var(--stock);
+    background:
+      radial-gradient(120% 80% at 50% -10%, #16223a 0%, var(--bg) 45%, var(--bg2) 100%);
+    user-select:none; -webkit-user-select:none;
+  }
+  /* blueprint grid — contextual aerospace nod */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:34px 34px;
+    mask-image:radial-gradient(120% 90% at 50% 30%, #000 55%, transparent 100%);
+  }
+
+  #app{
+    position:relative; z-index:1;
+    height:100dvh; display:flex; flex-direction:column;
+    padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom));
+    max-width:480px; margin:0 auto;
+  }
+
+  header{display:flex; align-items:baseline; justify-content:space-between; padding:2px 4px 10px}
+  .brand{font-weight:800; letter-spacing:-.02em; font-size:19px}
+  .brand span{color:#7fb2ff}
+  .counter{font-family:var(--mono); font-size:12px; color:#8aa0c0; letter-spacing:.04em}
+
+  /* filter chips */
+  .chips{display:flex; gap:7px; overflow-x:auto; padding:2px 4px 12px; scrollbar-width:none; -ms-overflow-style:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto; font-family:var(--mono); font-size:11px; letter-spacing:.03em;
+    padding:6px 11px; border-radius:999px; cursor:pointer; white-space:nowrap;
+    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); color:#c4d2e6;
+    transition:.18s; display:flex; align-items:center; gap:6px;
+  }
+  .chip .dot{width:8px; height:8px; border-radius:50%}
+  .chip[data-active="1"]{background:#fff; color:#10182a; border-color:#fff; font-weight:700}
+
+  /* card stage */
+  .stage{flex:1; position:relative; display:flex; align-items:center; justify-content:center; perspective:1400px}
+  .deck-shadow{position:absolute; width:84%; max-width:360px; height:90%; max-height:560px}
+  .deck-shadow i{
+    position:absolute; inset:0; border-radius:20px; background:var(--stock-edge);
+    box-shadow:0 24px 50px rgba(0,0,0,.45);
+  }
+  .deck-shadow i:nth-child(1){transform:translate(10px,14px) rotate(3.5deg); opacity:.35}
+  .deck-shadow i:nth-child(2){transform:translate(-7px,8px) rotate(-2.5deg); opacity:.55}
+
+  .card{
+    position:relative; width:84%; max-width:360px; height:90%; max-height:560px;
+    transform-style:preserve-3d; transition:transform .5s cubic-bezier(.2,.7,.2,1);
+    cursor:pointer;
+  }
+  .card.flipped{transform:rotateY(180deg)}
+  .card.dealing{animation:deal .42s cubic-bezier(.2,.8,.2,1)}
+  @keyframes deal{from{opacity:0; transform:translateX(var(--from,40px)) scale(.92) rotate(var(--rot,2deg))} to{opacity:1}}
+
+  .face{
+    position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+    border-radius:20px; overflow:hidden; background:var(--stock); color:var(--ink);
+    border:1px solid var(--stock-edge);
+    box-shadow:0 26px 55px rgba(0,0,0,.5), inset 0 0 0 6px rgba(255,255,255,.6);
+    display:flex; flex-direction:column;
+  }
+  .face.back{transform:rotateY(180deg)}
+  /* holographic foil sheen */
+  .face::after{
+    content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:overlay; opacity:.55;
+    background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.55) 45%,rgba(180,220,255,.35) 50%,transparent 62%);
+    background-size:300% 300%; animation:holo 7s ease-in-out infinite;
+  }
+  @keyframes holo{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+  .band{
+    --c:#888; color:#fff; padding:13px 16px 12px; position:relative;
+    background:linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 70%, #000));
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .band .type{font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; opacity:.85}
+  .band .title{font-weight:800; font-size:17px; letter-spacing:-.01em; line-height:1.1; margin-top:2px}
+  .star{
+    flex:0 0 auto; width:34px; height:34px; border-radius:50%; border:none; cursor:pointer;
+    background:rgba(255,255,255,.18); color:#fff; font-size:17px; line-height:34px; text-align:center;
+    transition:.15s;
+  }
+  .star[data-on="1"]{background:#fff; color:#e8910c}
+  .star:active{transform:scale(.88)}
+
+  .body{flex:1; display:flex; flex-direction:column; padding:18px 18px 14px; overflow:auto}
+  .eqn{
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    padding:14px 6px 18px; font-size:1.35rem; min-height:96px;
+  }
+  .lbl{font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft); margin:4px 0 7px}
+  .terms{display:flex; flex-direction:column; gap:6px}
+  .term{display:flex; gap:9px; align-items:baseline; font-size:13.5px; line-height:1.35}
+  .term .sym{flex:0 0 auto; min-width:30px; color:var(--ink)}
+  .term .def{color:#46505f}
+  .note{
+    margin-top:auto; padding:11px 13px; font-size:12.5px; line-height:1.45; color:#3c4654;
+    background:rgba(0,0,0,.035); border-left:3px solid var(--c,#888); border-radius:0 8px 8px 0; font-style:italic;
+  }
+  .hint{text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:.08em; color:#9aa3b0; padding:9px 0 12px}
+
+  /* back face */
+  .q{font-size:15.5px; line-height:1.5; color:var(--ink); padding:6px 2px 4px}
+  .reveal-btn{
+    margin-top:14px; align-self:flex-start; font-family:var(--mono); font-size:12px; letter-spacing:.05em;
+    padding:9px 15px; border-radius:10px; border:1.5px solid var(--c,#888); color:var(--c,#444);
+    background:transparent; cursor:pointer; transition:.15s;
+  }
+  .reveal-btn:active{transform:scale(.96)}
+  .answer{margin-top:14px; font-size:13.5px; line-height:1.55; color:#36404e; display:none}
+  .answer.show{display:block; animation:fade .35s ease}
+  .answer .lbl{margin-top:0}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1}}
+
+  /* controls */
+  .controls{display:flex; align-items:center; justify-content:center; gap:14px; padding:14px 0 4px}
+  .nav, .shuffle{
+    border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:#dce6f5;
+    border-radius:14px; cursor:pointer; transition:.15s; font-family:var(--disp);
+  }
+  .nav{width:54px; height:48px; font-size:22px}
+  .shuffle{height:48px; padding:0 20px; font-size:13px; font-weight:700; letter-spacing:.02em; display:flex; align-items:center; gap:8px}
+  .nav:active,.shuffle:active{transform:scale(.94); background:rgba(255,255,255,.14)}
+  .empty{color:#8aa0c0; text-align:center; font-family:var(--mono); font-size:13px}
+</style>
+
+<div id="app">
+  <header>
+    <div class="brand">Equation<span>·</span>Deck</div>
+    <div class="counter" id="counter">– / –</div>
+  </header>
+  <div class="chips" id="chips"></div>
+  <div class="stage" id="stage"></div>
+  <div class="controls">
+    <button class="nav" id="prev" aria-label="Previous">‹</button>
+    <button class="shuffle" id="shuffle">⤬ Shuffle</button>
+    <button class="nav" id="next" aria-label="Next">›</button>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   1. DATA  — add cards here forever without touching the app logic.
+   Each card: {cat, eq (LaTeX), terms:[[sym(LaTeX), definition]...], note, q, a}
+   ===================================================================== */
+const CATS = {
+  Statics:     "#5b6b8c",
+  Dynamics:    "#e5484d",
+  Rotational:  "#e8910c",
+  Energy:      "#d9a406",
+  Vibrations:  "#8b5cf6",
+  "Stress & Strain":"#0d9488",
+  Thermal:     "#c2410c",
+  "Beams & Buckling":"#16a34a",
+  Torsion:     "#65a30d",
+  Failure:     "#e11d75",
+  "Fluids & Aero":"#0ea5e9",
+  Propulsion:  "#4f46e5",
+  "Flight Dynamics":"#06b6d4",
+  Guidance:    "#c026d3",
+  Power:       "#ca8a04",
+};
+
+const CARDS = [
+  { cat:"Statics", eq:"\\sum F = 0,\\quad \\sum M = 0",
+    terms:[["F","forces acting on the body"],["M","moments about any point"]],
+    note:"Static equilibrium — the basis of every free-body diagram. Choose your moment pivot to cancel an unknown.",
+    q:"A drone arm is a horizontal rod pinned at the fuselage with a rotor thrust T at the tip, length L. What's the reaction moment at the pin?",
+    a:"Take moments about the pin: M_pin = T·L (hogging). The pin must also react the vertical force T. Picking the pin as pivot eliminates the unknown pin force from the moment equation." },
+
+  { cat:"Dynamics", eq:"F = ma = \\dfrac{dp}{dt}",
+    terms:[["F","net force"],["m","mass"],["a","acceleration"],["p","momentum, mv"]],
+    note:"Newton's 2nd law. The momentum form is the honest one — it still holds when mass changes (e.g. expelled propellant).",
+    q:"An interceptor accelerates from rest to 40 m/s in 2 s. Mass 1.5 kg. What thrust is needed, ignoring drag?",
+    a:"a = Δv/t = 20 m/s². F = ma = 1.5 × 20 = 30 N. With drag you'd add ½ρv²C_DA, which grows with v² and dominates at the top end." },
+
+  { cat:"Dynamics", eq:"J = F\\,\\Delta t = \\Delta p",
+    terms:[["J","impulse"],["F","average force"],["\\Delta t","contact time"],["\\Delta p","change in momentum"]],
+    note:"Impulse–momentum theorem. Longer contact time → lower peak force for the same momentum change. Central to impact and capture.",
+    q:"A 0.5 kg interceptor hits a target at 30 m/s and stops it over a 5 ms crush distance. Estimate the peak force.",
+    a:"Δp = 0.5 × 30 = 15 kg·m/s. F ≈ Δp/Δt = 15 / 0.005 = 3000 N. The short contact time is exactly why impact forces are huge — stretch Δt (crumple zone, net) to cut peak load." },
+
+  { cat:"Dynamics", eq:"v^2 = u^2 + 2as",
+    terms:[["v","final velocity"],["u","initial velocity"],["a","acceleration"],["s","distance"]],
+    note:"Constant-acceleration kinematics, no time term — ideal for stopping/launch distance problems.",
+    q:"How far does a 50 m/s interceptor travel while decelerating at 100 m/s² to a 10 m/s terminal-guidance speed?",
+    a:"s = (v²−u²)/(2a) = (10²−50²)/(2×−100) = (100−2500)/−200 = 12 m." },
+
+  { cat:"Dynamics", eq:"a_c = \\dfrac{v^2}{r} = \\omega^2 r",
+    terms:[["a_c","centripetal acceleration"],["v","speed"],["r","turn radius"],["\\omega","angular rate"]],
+    note:"Points to the centre of the turn. Divide by g to get the load factor the airframe must survive.",
+    q:"An interceptor pulls a 30 m radius turn at 40 m/s. How many g?",
+    a:"a_c = v²/r = 1600/30 ≈ 53 m/s² ≈ 5.4 g. The structure and any payload must be rated for that." },
+
+  { cat:"Rotational", eq:"\\tau = I\\alpha",
+    terms:[["\\tau","torque"],["I","mass moment of inertia"],["\\alpha","angular acceleration"]],
+    note:"Rotational F=ma. A quadcopter yaws/pitches by differential rotor torque; low I means snappy attitude response.",
+    q:"Why do racing/interceptor drones place batteries centrally and use short arms?",
+    a:"Both shrink the moment of inertia about the roll/pitch axes (I ∝ mr²). Lower I means a given control torque produces higher α — faster, more agile attitude changes." },
+
+  { cat:"Rotational", eq:"L = I\\omega",
+    terms:[["L","angular momentum"],["I","moment of inertia"],["\\omega","angular velocity"]],
+    note:"Conserved with no external torque. Spinning rotors store L — the source of gyroscopic coupling between axes.",
+    q:"A drone's rotors spin fast about the vertical axis. What happens when it pitches forward quickly?",
+    a:"Gyroscopic precession: the stored rotor angular momentum resists and reacts, producing a coupled moment about the roll axis. Counter-rotating rotor pairs cancel most net L to suppress this." },
+
+  { cat:"Energy", eq:"\\text{KE}=\\tfrac{1}{2}mv^2,\\quad W=\\Delta\\text{KE}",
+    terms:[["m","mass"],["v","speed"],["W","work done by net force"]],
+    note:"Work–energy theorem: net work equals the change in kinetic energy. The currency of terminal effect.",
+    q:"How much kinetic energy does a 0.4 kg interceptor carry at 60 m/s, and what does that tell you about defeating the target?",
+    a:"KE = ½ × 0.4 × 60² = 720 J. That energy budget is what's available to deform, fragment, or disable on impact — compare it against what the target can absorb." },
+
+  { cat:"Energy", eq:"P = Fv = \\tau\\omega",
+    terms:[["P","power"],["F","force"],["v","velocity"],["\\tau","torque"],["\\omega","angular rate"]],
+    note:"Power is force times the speed it acts at. Links motor torque/rpm to thrust and flight speed.",
+    q:"A motor delivers 2 N·m at 5000 rpm. What's its mechanical power output?",
+    a:"ω = 5000 × 2π/60 ≈ 524 rad/s. P = τω = 2 × 524 ≈ 1047 W ≈ 1.05 kW. Divide by motor efficiency to get the electrical draw." },
+
+  { cat:"Vibrations", eq:"\\omega_n = \\sqrt{\\dfrac{k}{m}}",
+    terms:[["\\omega_n","natural frequency (rad/s)"],["k","stiffness"],["m","mass"]],
+    note:"f_n = ω_n/2π. Keep this clear of the rotor passing frequency or you get resonance and fatigue.",
+    q:"A camera mount (0.1 kg) on a bracket of stiffness 4000 N/m — what's its natural frequency, and why care?",
+    a:"ω_n = √(4000/0.1) = 200 rad/s → f_n ≈ 32 Hz. If a rotor spins near 32 rev/s the mount resonates, blurring footage and fatiguing the bracket. Stiffen or add mass to shift f_n away." },
+
+  { cat:"Vibrations", eq:"\\zeta = \\dfrac{c}{2\\sqrt{km}}",
+    terms:[["\\zeta","damping ratio"],["c","damping coefficient"],["k","stiffness"],["m","mass"]],
+    note:"ζ<1 underdamped (oscillates), =1 critical (fastest no overshoot), >1 overdamped. Tune actuators/mounts near critical.",
+    q:"Why might you design a gimbal control loop or vibration mount for ζ slightly below 1 rather than exactly 1?",
+    a:"Critical damping gives the fastest settle with no overshoot, but slightly underdamped (ζ≈0.6–0.8) often settles faster overall with a small, acceptable overshoot — a deliberate speed/overshoot trade." },
+
+  { cat:"Stress & Strain", eq:"\\sigma = E\\varepsilon,\\quad \\sigma=\\tfrac{F}{A},\\ \\varepsilon=\\tfrac{\\Delta L}{L}",
+    terms:[["\\sigma","stress"],["E","Young's modulus"],["\\varepsilon","strain"],["F","load"],["A","area"]],
+    note:"Hooke's law — linear-elastic region ONLY. Breaks down past yield; says nothing about strength, only stiffness.",
+    q:"Two arms, same shape: one aluminium (E≈70 GPa), one CFRP (E≈130 GPa). Which deflects less under the same load, and is stiffer the same as stronger?",
+    a:"CFRP deflects less — higher E means less strain for the same stress. But stiffness (E) and strength (failure stress) are different properties; a stiff material can still fail at low load, so check both." },
+
+  { cat:"Stress & Strain", eq:"G = \\dfrac{E}{2(1+\\nu)}",
+    terms:[["G","shear modulus"],["E","Young's modulus"],["\\nu","Poisson's ratio"]],
+    note:"Links the two elastic constants for isotropic materials. With ν≈0.3, G ≈ 0.38E. Composites are anisotropic — this doesn't hold.",
+    q:"Why can't you use this relation for a carbon-fibre layup?",
+    a:"It assumes isotropy — equal properties in all directions. CFRP is anisotropic: stiffness depends on fibre orientation, so E, G and ν are direction-dependent and independent. You need the full ply-level material matrix." },
+
+  { cat:"Beams & Buckling", eq:"\\sigma = \\dfrac{My}{I}",
+    terms:[["\\sigma","bending stress"],["M","bending moment"],["y","distance from neutral axis"],["I","second moment of area"]],
+    note:"Euler–Bernoulli: plane sections stay plane, small deflection, linear-elastic. Stress is max at the outer fibre (largest y).",
+    q:"Why are drone arms often hollow tubes rather than solid rods of the same mass?",
+    a:"Bending stress falls as I rises, and I scales with the radius^4 while putting material far from the neutral axis. A hollow tube places mass at large y — high I per unit mass — so it resists bending far better than a solid rod of equal weight." },
+
+  { cat:"Beams & Buckling", eq:"\\delta = \\dfrac{PL^3}{3EI}",
+    terms:[["\\delta","tip deflection"],["P","tip load"],["L","length"],["E","modulus"],["I","2nd moment of area"]],
+    note:"Cantilever, point load at the tip — the canonical drone-arm model. Note the L³: length dominates deflection.",
+    q:"You halve a cantilevered arm's length. By what factor does tip deflection change for the same load?",
+    a:"δ ∝ L³, so halving L gives (½)³ = 1/8 the deflection. Length is by far the strongest lever on stiffness — far more than fattening the section." },
+
+  { cat:"Beams & Buckling", eq:"P_{cr} = \\dfrac{\\pi^2 EI}{(L_e)^2}",
+    terms:[["P_{cr}","critical buckling load"],["E","modulus"],["I","2nd moment of area"],["L_e","effective length"]],
+    note:"L_e = L pinned–pinned, 0.5L fixed–fixed, 2L fixed–free. Buckling is a stiffness/geometry failure — strength doesn't appear.",
+    q:"A landing leg is a slender strut. Yield strength is fine, yet it collapses on a hard landing. Why?",
+    a:"It buckled, not yielded — an instability governed by EI and length, not material strength. Increasing yield strength won't help; you need more I (fatter/hollow section) or shorter effective length / better end fixity." },
+
+  { cat:"Torsion", eq:"\\dfrac{\\tau}{r}=\\dfrac{T}{J}=\\dfrac{G\\theta}{L}",
+    terms:[["\\tau","shear stress"],["T","torque"],["J","polar 2nd moment"],["G","shear modulus"],["\\theta","twist angle"]],
+    note:"Circular shafts only. J = πd⁴/32 solid. Reaction torque from a rotor twists the arm — this sizes it.",
+    q:"A motor mount transmits rotor reaction torque down a tubular arm. What two failure modes do you check?",
+    a:"(1) Shear stress τ = Tr/J at the outer surface vs the material shear strength, and (2) angular twist θ = TL/GJ staying small enough that the rotor stays aligned. Hollow tubes give high J per mass for both." },
+
+  { cat:"Failure", eq:"\\sigma_{max}=K_t\\,\\sigma_{nom},\\quad \\text{FoS}=\\dfrac{\\sigma_{fail}}{\\sigma_{actual}}",
+    terms:[["K_t","stress concentration factor"],["\\sigma_{nom}","nominal stress"],["\\sigma_{fail}","failure stress"]],
+    note:"Holes, fillets and notches multiply local stress. Fatigue cracks almost always start at a concentration on the surface.",
+    q:"Where would you expect a repeatedly-flexed drone arm to crack first, and how do you mitigate it?",
+    a:"At the highest stress concentration — typically the bolt hole or the sharp fillet where the arm meets the body. Mitigate with generous fillet radii, polished surfaces, and avoiding holes in high-stress regions to lower K_t." },
+
+  { cat:"Failure", eq:"\\sigma_{vM}=\\sqrt{\\sigma_1^2-\\sigma_1\\sigma_2+\\sigma_2^2}",
+    terms:[["\\sigma_{vM}","von Mises stress"],["\\sigma_1,\\sigma_2","principal stresses"]],
+    note:"Ductile-yield criterion (plane stress): yields when σ_vM reaches the yield strength. Tresca is the more conservative cousin.",
+    q:"A part sees both bending and torsion at once. How do you decide if it yields?",
+    a:"Combine the stresses into the von Mises equivalent stress and compare to the yield strength. A single uniaxial check would miss the combined-loading effect; von Mises captures the multiaxial state." },
+
+  { cat:"Fluids & Aero", eq:"D = \\tfrac{1}{2}\\rho v^2 C_D A",
+    terms:[["D","drag force"],["\\rho","air density"],["v","airspeed"],["C_D","drag coefficient"],["A","reference area"]],
+    note:"Drag scales with v² — it dominates the power budget at intercept speeds and sets top speed.",
+    q:"Double an interceptor's speed. What happens to drag, and to the power needed to overcome it?",
+    a:"Drag ∝ v² → 4× the drag. Power = D·v ∝ v³ → 8× the power. This cubic wall is why top speed is so expensive in battery terms." },
+
+  { cat:"Fluids & Aero", eq:"p + \\tfrac{1}{2}\\rho v^2 + \\rho g h = \\text{const}",
+    terms:[["p","static pressure"],["\\rho","density"],["v","flow speed"],["h","height"]],
+    note:"Bernoulli — inviscid, incompressible, along a streamline. Trades pressure for speed; underlies lift and pitot airspeed.",
+    q:"A pitot tube reads a pressure difference of 800 Pa. What airspeed does that imply (ρ=1.2)?",
+    a:"Dynamic pressure ½ρv² = 800 → v = √(2×800/1.2) ≈ 36.5 m/s. That's exactly how the drone measures its own airspeed." },
+
+  { cat:"Fluids & Aero", eq:"Re = \\dfrac{\\rho v L}{\\mu}",
+    terms:[["Re","Reynolds number"],["\\rho","density"],["v","speed"],["L","characteristic length"],["\\mu","viscosity"]],
+    note:"Ratio of inertial to viscous forces. Small drones/props run at low Re where viscous effects and stall behave differently.",
+    q:"Why don't full-scale aircraft aerofoils work well when scaled down to a small drone propeller?",
+    a:"Small size and low speed mean low Re, where viscous effects dominate and flow separates earlier. Aerofoils optimised at high Re lose efficiency, so small props use sections designed for the low-Re regime." },
+
+  { cat:"Propulsion", eq:"v_i = \\sqrt{\\dfrac{T}{2\\rho A}}",
+    terms:[["v_i","induced velocity"],["T","thrust"],["\\rho","air density"],["A","rotor disk area"]],
+    note:"Hover, from momentum theory (mass flow × velocity change = thrust). Derive it — it's a classic whiteboard ask.",
+    q:"Derive the induced velocity at the rotor disk in hover from first principles.",
+    a:"Mass flow ṁ = ρA·v_i. Far downstream the wake doubles to 2v_i (actuator-disk result). Thrust = ṁ × Δv = ρA·v_i × 2v_i = 2ρA·v_i². Solve: v_i = √(T/2ρA)." },
+
+  { cat:"Propulsion", eq:"P_{ideal}=Tv_i=\\sqrt{\\dfrac{T^3}{2\\rho A}}",
+    terms:[["P_{ideal}","ideal hover power"],["T","thrust"],["A","disk area"],["\\rho","density"]],
+    note:"THE key insight: power ∝ T^1.5 and ∝ 1/√A. Bigger rotors hover far more efficiently — the heart of endurance design.",
+    q:"You can either double thrust or double rotor disk area. Which is cheaper in hover power, and what's the lesson?",
+    a:"Doubling T raises power by 2^1.5 ≈ 2.83×. Doubling A cuts power by 1/√2 ≈ 0.71×. Lesson: for endurance, the biggest, slowest-turning rotor you can fit wins — disk loading is everything." },
+
+  { cat:"Propulsion", eq:"T = C_T\\,\\rho n^2 D^4,\\quad P = C_P\\,\\rho n^3 D^5",
+    terms:[["T","thrust"],["P","power"],["n","rev/s"],["D","diameter"],["C_T,C_P","coefficients"]],
+    note:"Propeller scaling laws. Thrust ∝ D⁴, power ∝ D⁵ and rpm³ — small diameter changes have outsized effects.",
+    q:"You increase prop diameter by 20% at fixed rpm. Roughly what happens to thrust and power?",
+    a:"Thrust ∝ D⁴ → 1.2⁴ ≈ 2.07× (about double). Power ∝ D⁵ → 1.2⁵ ≈ 2.49×. A modest diameter bump is a large thrust gain but an even larger power cost — check the motor can supply it." },
+
+  { cat:"Flight Dynamics", eq:"n=\\dfrac{L}{W},\\quad r=\\dfrac{v^2}{g\\sqrt{n^2-1}}",
+    terms:[["n","load factor (g)"],["L","lift"],["W","weight"],["r","turn radius"],["v","speed"]],
+    note:"Turn performance — where interception is won or lost. Three limits cap n: structure, stall (max C_L), thrust.",
+    q:"Your interceptor can pull 6 g. At 50 m/s, what's its tightest turn radius, and what could stop it achieving that?",
+    a:"r = v²/(g√(n²−1)) = 2500/(9.81×√35) ≈ 43 m. It only achieves this if the wing can generate the lift without stalling and the motors supply enough thrust to hold speed through the turn — whichever limit binds first wins." },
+
+  { cat:"Flight Dynamics", eq:"\\dot\\psi=\\dfrac{g\\sqrt{n^2-1}}{v}",
+    terms:[["\\dot\\psi","turn rate"],["n","load factor"],["v","speed"],["g","gravity"]],
+    note:"For a given n, turn rate is HIGHER at lower speed. To out-turn a target, often the answer is to slow down, not speed up.",
+    q:"Two drones pull the same g. One is faster. Which turns at a higher rate, and what's the tactical implication?",
+    a:"The slower one — turn rate ∝ 1/v at fixed n. To win an angular fight you may deliberately bleed speed to out-rotate the target, trading energy for pointing advantage." },
+
+  { cat:"Guidance", eq:"a_{cmd}=N\\,V_c\\,\\dot\\lambda",
+    terms:[["a_{cmd}","commanded lateral accel"],["N","navigation constant (3–5)"],["V_c","closing velocity"],["\\dot\\lambda","line-of-sight rate"]],
+    note:"Proportional navigation — the core homing law. Command acceleration to drive the line-of-sight rotation rate to zero.",
+    q:"In pro-nav, what does it mean if the line-of-sight angle to the target stays constant while range closes?",
+    a:"You're on a collision course — constant bearing, decreasing range. λ̇ = 0 means zero commanded acceleration; you just hold heading and intercept. Pro-nav steers precisely to null any λ̇." },
+
+  { cat:"Power", eq:"t_{flight}\\approx\\dfrac{E\\,\\eta}{P_{hover}},\\quad E = C\\cdot V",
+    terms:[["t_{flight}","endurance"],["E","battery energy (Wh)"],["\\eta","system efficiency"],["P_{hover}","hover power"],["C","capacity (Ah)"]],
+    note:"Combine with momentum-theory hover power to size endurance. Real life: derate for reserve, never run a pack flat.",
+    q:"A 4S (≈14.8 V) 5 Ah pack flies a drone that hovers at 200 W, system efficiency 0.7. Rough endurance?",
+    a:"E = 5 × 14.8 = 74 Wh. t ≈ (74 × 0.7)/200 ≈ 0.26 h ≈ 15.5 min. Keep ~20% in reserve, so plan around 12 min usable." },
+
+  { cat:"Statics", eq:"M = Fd = |\\mathbf{r}\\times\\mathbf{F}|",
+    terms:[["F","force"],["d","perpendicular lever arm"],["\\mathbf{r}","position vector from pivot"]],
+    note:"Moment of a force. Maximised when the force is perpendicular to the lever arm; choose your pivot to eliminate unknowns.",
+    q:"Two rotors on opposite arms of a quad run slightly different thrust. How does that rotate the aircraft, and what sets the control moment?",
+    a:"A thrust difference ΔT acting at arm length d gives a net moment M = ΔT·d about the centre — this is how roll/pitch is commanded. Longer arms give more moment per unit ΔT, but also raise rotational inertia." },
+
+  { cat:"Statics", eq:"F \\le \\mu N",
+    terms:[["F","friction force"],["\\mu","coefficient of friction"],["N","normal force"]],
+    note:"Static friction reacts up to a limit μN, then slips. To first order it's independent of contact area.",
+    q:"A drone rests on a 20° launch rail. What minimum friction coefficient stops it sliding before the motors spin up?",
+    a:"On the verge of slipping, mg·sinθ = μ·mg·cosθ, so μ = tanθ = tan20° ≈ 0.36. Below that it slides — and the mass cancels out entirely." },
+
+  { cat:"Dynamics", eq:"v = u + at,\\quad s = ut + \\tfrac{1}{2}at^2",
+    terms:[["v","final velocity"],["u","initial velocity"],["a","acceleration"],["t","time"],["s","distance"]],
+    note:"Constant-acceleration kinematics with time — use when the manoeuvre duration matters.",
+    q:"An interceptor launches from rest at a constant 80 m/s². Speed and distance after 0.5 s?",
+    a:"v = 80×0.5 = 40 m/s; s = ½×80×0.5² = 10 m. The constant-accel assumption only holds while thrust ≫ drag, i.e. early in the boost." },
+
+  { cat:"Rotational", eq:"\\text{KE}=\\tfrac{1}{2}I\\omega^2,\\quad I=I_{cm}+md^2",
+    terms:[["I","moment of inertia"],["\\omega","angular rate"],["I_{cm}","inertia about centroid"],["d","axis offset"]],
+    note:"Standard values: disk ½mr², rod about its end ⅓mL². Parallel-axis theorem shifts inertia to an offset axis.",
+    q:"Why does moving the battery from the centre to the nose of a fixed-wing drone hurt pitch agility?",
+    a:"Parallel-axis: I = I_cm + md². Offsetting a heavy mass by d adds md² to the pitch inertia, so a given control moment yields less angular acceleration (α = τ/I). Keep heavy masses near the CG." },
+
+  { cat:"Energy", eq:"\\text{PE}=mgh,\\quad U_{spring}=\\tfrac{1}{2}kx^2",
+    terms:[["m","mass"],["g","gravity"],["h","height"],["k","spring stiffness"],["x","deflection"]],
+    note:"Energy conservation: KE + PE = const without losses. Elastic elements store ½kx² — the basis of energy-absorbing capture.",
+    q:"A net system uses a spring to absorb a 0.4 kg target at 25 m/s, with 0.1 m of allowed travel. What stiffness avoids bottoming out?",
+    a:"Set ½mv² = ½kx²: k = mv²/x² = 0.4×625/0.01 = 25,000 N/m. Softer needs more travel; stiffer raises peak force. The energy method skips the time history entirely." },
+
+  { cat:"Vibrations", eq:"x(t)=A\\cos(\\omega t+\\phi),\\quad \\omega_d=\\omega_n\\sqrt{1-\\zeta^2}",
+    terms:[["A","amplitude"],["\\phi","phase"],["\\omega_d","damped natural freq"],["\\omega_n","undamped natural freq"],["\\zeta","damping ratio"]],
+    note:"Free-vibration response. Damping lowers the oscillation frequency slightly and bleeds amplitude over time.",
+    q:"A lightly damped arm (ζ=0.05) rings after a knock. Is the observed frequency above or below ω_n, and by how much?",
+    a:"Below: ω_d = ω_n√(1−0.05²) ≈ 0.9987 ω_n — about 0.1% lower. For light damping the frequency shift is negligible; damping mainly governs how fast the ringing decays, not its pitch." },
+
+  { cat:"Stress & Strain", eq:"\\Delta L=\\alpha L\\,\\Delta T,\\quad \\sigma=E\\alpha\\,\\Delta T",
+    terms:[["\\alpha","thermal expansion coeff"],["L","length"],["\\Delta T","temperature change"],["\\sigma","thermal stress if constrained"]],
+    note:"Free expansion is stress-free; CONSTRAINED expansion builds stress σ = EαΔT. A common source of warping in mixed-material assemblies.",
+    q:"An aluminium bracket bolted rigidly to a CFRP frame heats up 40°C. Why might it warp or crack with no external load?",
+    a:"Their expansion coefficients differ (Al ≈ 23 µε/°C, CFRP ≈ near zero). Under constraint the mismatch generates thermal stress σ ≈ EαΔT plus bending. Allow for it with slotted holes or compliant mounts." },
+
+  { cat:"Beams & Buckling", eq:"I_{rect}=\\dfrac{bh^3}{12},\\quad I_{circle}=\\dfrac{\\pi d^4}{64}",
+    terms:[["b","width"],["h","depth"],["d","diameter"]],
+    note:"Second moment of area — how section area is distributed about the neutral axis. Note h³ and d⁴: depth/diameter dominate.",
+    q:"Same mass: deepen a rectangular spar 25% or widen it 25%. Which stiffens it more in bending?",
+    a:"Deepening — I ∝ h³ → ×1.25³ ≈ 1.95 (nearly double). Widening — I ∝ b → just ×1.25. Put material in the depth direction and load the section about its strong axis." },
+
+  { cat:"Beams & Buckling", eq:"\\dfrac{1}{R}=\\dfrac{M}{EI},\\quad \\delta=\\dfrac{5wL^4}{384EI}",
+    terms:[["R","radius of curvature"],["M","bending moment"],["w","load per unit length"],["L","span"]],
+    note:"Curvature is proportional to moment. Simply-supported UDL gives mid-span deflection — note the L⁴, span dominates everything.",
+    q:"A landing skid spans two supports under the drone's weight as a UDL. Halve the span — what happens to mid-span sag?",
+    a:"δ ∝ L⁴, so halving the span gives (½)⁴ = 1/16 the deflection. Span is the overwhelming driver — shortening it beats stiffening the section nearly every time." },
+
+  { cat:"Failure", eq:"\\dfrac{\\sigma_a}{S_e}+\\dfrac{\\sigma_m}{S_{ut}}=1",
+    terms:[["\\sigma_a","alternating stress"],["\\sigma_m","mean stress"],["S_e","endurance limit"],["S_{ut}","ultimate strength"]],
+    note:"Goodman line — combines cyclic and mean stress for fatigue life. Cracks start at surface notches; failure can occur far below yield.",
+    q:"A drone arm survives a single hard load fine but fails after a few hundred flights. What's happening, and how do you fix it?",
+    a:"Fatigue — repeated take-off/landing cycles grow a crack from a stress concentration, failing well below static strength. Reduce alternating stress, improve surface finish, add fillet radii, or choose a material with a true endurance limit." },
+
+  { cat:"Thermal", eq:"\\Delta U = Q - W",
+    terms:[["\\Delta U","change in internal energy"],["Q","heat added to system"],["W","work done by system"]],
+    note:"First law — energy bookkeeping. For electronics: the electrical power going in ends up as heat that must go somewhere.",
+    q:"An ESC dissipates 15 W as heat inside a sealed pod. In steady state, where does that energy go?",
+    a:"Steady state means ΔU = 0, so heat in = heat out: the 15 W must leave by conduction, convection and radiation to ambient. If the path can't shed 15 W, the temperature climbs until it can — or the part cooks." },
+
+  { cat:"Thermal", eq:"q=-kA\\dfrac{dT}{dx},\\quad q=hA\\,\\Delta T",
+    terms:[["q","heat-transfer rate"],["k","thermal conductivity"],["A","area"],["h","convection coefficient"],["\\Delta T","temp difference"]],
+    note:"Conduction (Fourier) through solids; convection from a surface to moving air. Propwash raises h — effectively free cooling on a drone.",
+    q:"A motor runs hot in hover but cool in fast forward flight. Why?",
+    a:"Convection q = hAΔT rises with airflow over the motor (higher h). Forward flight increases that flow, shedding the same heat at a lower ΔT. Hover leans on propwash and conduction, so it runs hotter." },
+
+  { cat:"Fluids & Aero", eq:"\\rho A v = \\text{const}",
+    terms:[["\\rho","density"],["A","cross-section area"],["v","flow speed"]],
+    note:"Conservation of mass for steady flow. Incompressible: Av = const, so flow speeds up where area narrows (and pressure falls, via Bernoulli).",
+    q:"Air accelerates through a rotor disk. By continuity, what must the slipstream area do downstream?",
+    a:"Mass flow ρAv is conserved, so as v rises in the wake the area A must shrink — the slipstream necks down behind the rotor. That contracting streamtube is the core of actuator-disk theory." },
+
+  { cat:"Fluids & Aero", eq:"L=\\tfrac{1}{2}\\rho v^2 C_L A",
+    terms:[["L","lift"],["\\rho","density"],["v","airspeed"],["C_L","lift coefficient"],["A","wing area"]],
+    note:"Lift scales with v² and with C_L (set by angle of attack, up to stall). Same form as drag — they're a matched pair.",
+    q:"A fixed-wing interceptor needs lift = 6× weight in a turn. Flying at twice stall speed, can it pull it?",
+    a:"Lift ∝ v²C_L. At 2× stall speed and max C_L, available lift is 2² = 4× weight before stalling — short of 6 g. It needs ≈√6 ≈ 2.45× stall speed to sustain that turn." },
+
+  { cat:"Fluids & Aero", eq:"M=\\dfrac{v}{a},\\quad a=\\sqrt{\\gamma R T}",
+    terms:[["M","Mach number"],["v","speed"],["a","local speed of sound"],["\\gamma","ratio of specific heats"],["T","temperature"]],
+    note:"Speed relative to the local sound speed. Compressibility matters above M≈0.3 — rotor tips reach it long before the airframe does.",
+    q:"A 12-inch prop spins at 10,000 rpm. Is tip compressibility a concern?",
+    a:"Tip speed = ω·r = (10000×2π/60)×0.152 ≈ 159 m/s. M ≈ 159/343 ≈ 0.46 — well above 0.3, so tip compressibility losses and noise are real. Big, fast props hit this before the vehicle does." },
+
+  { cat:"Propulsion", eq:"\\text{DL}=\\dfrac{T}{A},\\quad \\text{FM}=\\dfrac{P_{ideal}}{P_{actual}}",
+    terms:[["\\text{DL}","disk loading"],["T","thrust"],["A","disk area"],["\\text{FM}","figure of merit"]],
+    note:"Low disk loading = efficient hover (big rotors). Figure of merit (≈0.6–0.8) measures how close a real rotor gets to the ideal.",
+    q:"A heavy-lift drone and a racer have very different disk loadings. Which hovers more efficiently, and why?",
+    a:"The lower disk loading wins — since P_ideal ∝ √(T³/2ρA), spreading thrust over a big disk (low T/A) cuts induced power. The racer's small, highly-loaded rotors are power-hungry in hover but compact and agile." },
+
+  { cat:"Flight Dynamics", eq:"L=W,\\quad v_{stall}=\\sqrt{\\dfrac{2W}{\\rho S C_{L,max}}}",
+    terms:[["L","lift"],["W","weight"],["v_{stall}","stall speed"],["S","wing area"],["C_{L,max}","max lift coeff"]],
+    note:"In steady level flight lift balances weight. Stall speed is the slowest you can fly before C_L,max can no longer hold you up.",
+    q:"Two identical interceptors, but one carries a heavier warhead. How does that change its minimum flying speed?",
+    a:"v_stall ∝ √W, so more weight raises stall speed — it must fly faster to stay up, widening its minimum turn and shrinking the low-speed envelope. Payload mass directly costs manoeuvre margin." },
+
+  { cat:"Guidance", eq:"V_c=-\\dfrac{dR}{dt},\\quad t_{go}\\approx\\dfrac{R}{V_c}",
+    terms:[["V_c","closing velocity"],["R","range to target"],["t_{go}","time-to-intercept"]],
+    note:"Closing velocity is how fast range shrinks. Time-to-go feeds the guidance gains and terminal/fuse logic.",
+    q:"Range 600 m, closing velocity 150 m/s. Roughly how long to intercept, and why is the estimate rough?",
+    a:"t_go ≈ R/V_c = 600/150 = 4 s. It's approximate because V_c isn't constant — both vehicles manoeuvre, so range rate changes and the guidance recomputes it continuously rather than trusting one snapshot." },
+
+  { cat:"Power", eq:"P=IV,\\quad \\tau \\approx k_t I",
+    terms:[["P","electrical power"],["I","current"],["V","voltage"],["\\tau","motor torque"],["k_t","torque constant"]],
+    note:"Electrical power = current × voltage. Brushless motor torque is roughly proportional to current, so torque demand sets battery draw.",
+    q:"Torque constant 0.01 N·m/A, hover torque 0.2 N·m per motor. What current does each draw, and what's the pack implication?",
+    a:"I ≈ τ/k_t = 0.2/0.01 = 20 A per motor. Multiply by the motor count and pack voltage for hover power — and confirm the battery's C-rating can supply that current without voltage sag." },
+];
+
+/* =====================================================================
+   2. STATE & LOGIC
+   ===================================================================== */
+const state = {
+  filter: "All",
+  order: [],
+  pos: 0,
+  flipped: false,
+  revealed: false,
+  // In-memory flags for this PREVIEW (reset on reload).
+  // DEPLOY: swap the two lines below for localStorage to persist across sessions.
+  flagged: new Set(),
+};
+function saveFlags(){ /* DEPLOY: localStorage.setItem('flags',JSON.stringify([...state.flagged])) */ }
+
+function activeIndices(){
+  return CARDS.map((c,i)=>i).filter(i=>{
+    if(state.filter==="All") return true;
+    if(state.filter==="★ Flagged") return state.flagged.has(i);
+    return CARDS[i].cat===state.filter;
+  });
+}
+function buildOrder(shuffle){
+  let idx = activeIndices();
+  if(shuffle){ for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];} }
+  state.order = idx; state.pos = 0; state.flipped=false; state.revealed=false;
+}
+
+const stage = document.getElementById('stage');
+const counter = document.getElementById('counter');
+
+function renderMath(tex, el, display){
+  try{ window.katex.render(tex, el, {throwOnError:false, displayMode:!!display}); }
+  catch(e){ el.textContent = tex; }
+}
+
+function render(direction){
+  const total = state.order.length;
+  counter.textContent = total ? `${state.pos+1} / ${total}` : "0 / 0";
+
+  if(!total){
+    stage.innerHTML = '<div class="empty">No cards in this filter yet.<br>Try ★ Flagged after starring some, or pick another type.</div>';
+    return;
+  }
+  const ci = state.order[state.pos];
+  const c = CARDS[ci];
+  const color = CATS[c.cat] || "#888";
+
+  stage.innerHTML = `
+    <div class="deck-shadow"><i></i><i></i></div>
+    <div class="card ${state.flipped?'flipped':''} dealing" id="card"
+         style="--from:${direction<0?'-40px':'40px'};--rot:${direction<0?'-2deg':'2deg'}">
+      <div class="face front">
+        <div class="band" style="--c:${color}">
+          <div><div class="type">${c.cat}</div><div class="title">${c.title||c.cat}</div></div>
+          <button class="star" data-on="${state.flagged.has(ci)?1:0}" id="star">★</button>
+        </div>
+        <div class="body">
+          <div class="eqn" id="eqn"></div>
+          <div class="lbl">Terms</div>
+          <div class="terms" id="terms"></div>
+          <div class="note" style="--c:${color}">${c.note}</div>
+        </div>
+        <div class="hint">tap to flip → interview question</div>
+      </div>
+      <div class="face back">
+        <div class="band" style="--c:${color}">
+          <div><div class="type">${c.cat} · practice</div><div class="title">Interview question</div></div>
+        </div>
+        <div class="body">
+          <div class="q">${c.q}</div>
+          <button class="reveal-btn" id="reveal" style="--c:${color}">Reveal answer ▸</button>
+          <div class="answer ${state.revealed?'show':''}" id="answer">
+            <div class="lbl">Model answer</div>${c.a}
+          </div>
+        </div>
+        <div class="hint">tap to flip back</div>
+      </div>
+    </div>`;
+
+  // render maths
+  renderMath(c.eq, document.getElementById('eqn'), true);
+  const tEl = document.getElementById('terms');
+  c.terms.forEach(([sym,def])=>{
+    const row=document.createElement('div'); row.className='term';
+    const s=document.createElement('span'); s.className='sym'; renderMath(sym,s,false);
+    const d=document.createElement('span'); d.className='def'; d.textContent=def;
+    row.append(s,d); tEl.append(row);
+  });
+  if(state.revealed) document.getElementById('answer').classList.add('show');
+
+  wireCard();
+}
+
+/* ---- interactions: tap=flip, horizontal swipe=navigate ---- */
+function wireCard(){
+  const card = document.getElementById('card');
+  if(!card) return;
+
+  document.getElementById('star').onclick = (e)=>{
+    e.stopPropagation();
+    const ci = state.order[state.pos];
+    state.flagged.has(ci)?state.flagged.delete(ci):state.flagged.add(ci);
+    saveFlags();
+    e.currentTarget.dataset.on = state.flagged.has(ci)?1:0;
+  };
+  const rev = document.getElementById('reveal');
+  if(rev) rev.onclick = (e)=>{ e.stopPropagation(); state.revealed=true; document.getElementById('answer').classList.add('show'); };
+
+  let x0=null,y0=null,moved=false;
+  const start=(x,y)=>{x0=x;y0=y;moved=false;};
+  const move=(x,y)=>{ if(x0!==null && (Math.abs(x-x0)>8||Math.abs(y-y0)>8)) moved=true; };
+  const end=(x,y)=>{
+    if(x0===null) return;
+    const dx=x-x0, dy=y-y0;
+    if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)){ dx<0?go(1):go(-1); }
+    else if(!moved){ flip(); }
+    x0=y0=null;
+  };
+  card.addEventListener('touchstart',e=>start(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
+  card.addEventListener('touchmove', e=>move(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
+  card.addEventListener('touchend',  e=>end(e.changedTouches[0].clientX,e.changedTouches[0].clientY));
+  card.addEventListener('mousedown', e=>start(e.clientX,e.clientY));
+  card.addEventListener('mousemove', e=>{ if(e.buttons) move(e.clientX,e.clientY); });
+  card.addEventListener('mouseup',   e=>end(e.clientX,e.clientY));
+}
+function flip(){ state.flipped=!state.flipped; const c=document.getElementById('card'); if(c) c.classList.toggle('flipped'); }
+function go(dir){
+  const total=state.order.length; if(!total) return;
+  state.pos=(state.pos+dir+total)%total; state.flipped=false; state.revealed=false; render(dir);
+}
+
+/* ---- chips, buttons, keyboard ---- */
+function buildChips(){
+  const wrap=document.getElementById('chips');
+  const opts=["All","★ Flagged",...Object.keys(CATS)];
+  wrap.innerHTML="";
+  opts.forEach(name=>{
+    const chip=document.createElement('div'); chip.className='chip';
+    chip.dataset.active = state.filter===name?1:0;
+    if(CATS[name]){ const dot=document.createElement('span'); dot.className='dot'; dot.style.background=CATS[name]; chip.append(dot); }
+    chip.append(document.createTextNode(name));
+    chip.onclick=()=>{ state.filter=name; buildOrder(false); buildChips(); render(1); };
+    wrap.append(chip);
+  });
+}
+document.getElementById('next').onclick=()=>go(1);
+document.getElementById('prev').onclick=()=>go(-1);
+document.getElementById('shuffle').onclick=()=>{ buildOrder(true); render(1); };
+window.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight') go(1);
+  else if(e.key==='ArrowLeft') go(-1);
+  else if(e.key===' '||e.key==='Enter'){ e.preventDefault(); flip(); }
+  else if(e.key.toLowerCase()==='s'){ buildOrder(true); render(1); }
+});
+
+/* derive a short title per card from its category for the band */
+CARDS.forEach(c=>{ c.title = c.cat; });
+
+/* Is KaTeX actually usable? (loaded AND able to produce real output) */
+function katexWorks(){
+  if(!window.katex || typeof window.katex.render!=='function') return false;
+  try{
+    const probe=document.createElement('span');
+    window.katex.render('x^2', probe, {throwOnError:false});
+    return !!probe.querySelector('.katex');
+  }catch(e){ return false; }
+}
+
+/* boot — build the deck immediately, then render once KaTeX is verified working.
+   Retries for a while; if it never loads (e.g. CDN blocked offline) the cards
+   still show their LaTeX source rather than nothing. */
+(function boot(){
+  buildOrder(false); buildChips();
+  let tries=0;
+  (function waitForKatex(){
+    if(katexWorks() || window.__katexFailed || tries>150){ render(1); return; }
+    tries++; setTimeout(waitForKatex,40);
+  })();
+})();
+
+/* Offline caching is temporarily disabled while we confirm rendering works.
+   This actively removes any old service worker + its caches so devices that
+   cached the earlier broken version heal themselves on next load. */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.unregister())).catch(()=>{});
+  if(window.caches && caches.keys){
+    caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))).catch(()=>{});
+  }
+}
+</script>
+
+<!-- =====================================================================
+     DEPLOY NOTES (to make this a home-screen app on iPhone)
+
+     Ship these files together in ONE folder:
+        index.html  (THIS file — rename equation-cards.html -> index.html)
+        manifest.json
+        sw.js
+        icon-180.png  icon-192.png  icon-512.png  icon-maskable-512.png
+     The manifest link, apple-touch-icon, and service-worker registration
+     are already wired into this file — no further HTML edits needed.
+
+     1. Rename this file to index.html so the start_url ("." ) resolves to it
+        and the service worker's navigation fallback works.
+     2. Host the folder over HTTPS (required for SW + a clean install):
+          - Netlify: drag the folder onto  app.netlify.com/drop  -> instant URL
+          - or push to a GitHub repo and enable GitHub Pages.
+     3. On iPhone: open the URL in Safari -> Share -> "Add to Home Screen".
+        It launches fullscreen with its own icon. Load it once on wifi and the
+        service worker caches KaTeX + fonts, so it then works offline (e.g. on
+        the train with no signal).
+     4. To persist starred cards across sessions, swap the in-memory Set in the
+        STATE block above for localStorage:
+          load -> state.flagged = new Set(JSON.parse(localStorage.getItem('flags')||'[]'))
+          save -> in saveFlags(): localStorage.setItem('flags', JSON.stringify([...state.flagged]))
+     5. After changing the app, bump CACHE_VERSION in sw.js so phones pull the
+        new version instead of the cached old one.
+     ===================================================================== -->
