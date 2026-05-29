@@ -15,9 +15,8 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"
-        onload="window.__katexLoaded=true" onerror="window.__katexFailed=true"></script>
+<!-- Equations are pre-rendered to native MathML and embedded directly — no
+     external library is loaded, so nothing can fail to fetch or cache. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -126,6 +125,10 @@
     display:flex; align-items:center; justify-content:center; text-align:center;
     padding:14px 6px 18px; font-size:1.35rem; min-height:96px;
   }
+  /* native MathML sizing */
+  .eqn math{ font-size:1.5rem; math-style:normal; max-width:100%; }
+  .eqn math[display="block"]{ margin:0 auto; }
+  .term .sym math{ font-size:1.05rem; }
   .lbl{font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft); margin:4px 0 7px}
   .terms{display:flex; flex-direction:column; gap:6px}
   .term{display:flex; gap:9px; align-items:baseline; font-size:13.5px; line-height:1.35}
@@ -200,293 +203,1210 @@ const CATS = {
 };
 
 const CARDS = [
-  { cat:"Statics", eq:"\\sum F = 0,\\quad \\sum M = 0",
-    terms:[["F","forces acting on the body"],["M","moments about any point"]],
-    note:"Static equilibrium — the basis of every free-body diagram. Choose your moment pivot to cancel an unknown.",
-    q:"A drone arm is a horizontal rod pinned at the fuselage with a rotor thrust T at the tip, length L. What's the reaction moment at the pin?",
-    a:"Take moments about the pin: M_pin = T·L (hogging). The pin must also react the vertical force T. Picking the pin as pivot eliminates the unknown pin force from the moment equation." },
-
-  { cat:"Dynamics", eq:"F = ma = \\dfrac{dp}{dt}",
-    terms:[["F","net force"],["m","mass"],["a","acceleration"],["p","momentum, mv"]],
-    note:"Newton's 2nd law. The momentum form is the honest one — it still holds when mass changes (e.g. expelled propellant).",
-    q:"An interceptor accelerates from rest to 40 m/s in 2 s. Mass 1.5 kg. What thrust is needed, ignoring drag?",
-    a:"a = Δv/t = 20 m/s². F = ma = 1.5 × 20 = 30 N. With drag you'd add ½ρv²C_DA, which grows with v² and dominates at the top end." },
-
-  { cat:"Dynamics", eq:"J = F\\,\\Delta t = \\Delta p",
-    terms:[["J","impulse"],["F","average force"],["\\Delta t","contact time"],["\\Delta p","change in momentum"]],
-    note:"Impulse–momentum theorem. Longer contact time → lower peak force for the same momentum change. Central to impact and capture.",
-    q:"A 0.5 kg interceptor hits a target at 30 m/s and stops it over a 5 ms crush distance. Estimate the peak force.",
-    a:"Δp = 0.5 × 30 = 15 kg·m/s. F ≈ Δp/Δt = 15 / 0.005 = 3000 N. The short contact time is exactly why impact forces are huge — stretch Δt (crumple zone, net) to cut peak load." },
-
-  { cat:"Dynamics", eq:"v^2 = u^2 + 2as",
-    terms:[["v","final velocity"],["u","initial velocity"],["a","acceleration"],["s","distance"]],
-    note:"Constant-acceleration kinematics, no time term — ideal for stopping/launch distance problems.",
-    q:"How far does a 50 m/s interceptor travel while decelerating at 100 m/s² to a 10 m/s terminal-guidance speed?",
-    a:"s = (v²−u²)/(2a) = (10²−50²)/(2×−100) = (100−2500)/−200 = 12 m." },
-
-  { cat:"Dynamics", eq:"a_c = \\dfrac{v^2}{r} = \\omega^2 r",
-    terms:[["a_c","centripetal acceleration"],["v","speed"],["r","turn radius"],["\\omega","angular rate"]],
-    note:"Points to the centre of the turn. Divide by g to get the load factor the airframe must survive.",
-    q:"An interceptor pulls a 30 m radius turn at 40 m/s. How many g?",
-    a:"a_c = v²/r = 1600/30 ≈ 53 m/s² ≈ 5.4 g. The structure and any payload must be rated for that." },
-
-  { cat:"Rotational", eq:"\\tau = I\\alpha",
-    terms:[["\\tau","torque"],["I","mass moment of inertia"],["\\alpha","angular acceleration"]],
-    note:"Rotational F=ma. A quadcopter yaws/pitches by differential rotor torque; low I means snappy attitude response.",
-    q:"Why do racing/interceptor drones place batteries centrally and use short arms?",
-    a:"Both shrink the moment of inertia about the roll/pitch axes (I ∝ mr²). Lower I means a given control torque produces higher α — faster, more agile attitude changes." },
-
-  { cat:"Rotational", eq:"L = I\\omega",
-    terms:[["L","angular momentum"],["I","moment of inertia"],["\\omega","angular velocity"]],
-    note:"Conserved with no external torque. Spinning rotors store L — the source of gyroscopic coupling between axes.",
-    q:"A drone's rotors spin fast about the vertical axis. What happens when it pitches forward quickly?",
-    a:"Gyroscopic precession: the stored rotor angular momentum resists and reacts, producing a coupled moment about the roll axis. Counter-rotating rotor pairs cancel most net L to suppress this." },
-
-  { cat:"Energy", eq:"\\text{KE}=\\tfrac{1}{2}mv^2,\\quad W=\\Delta\\text{KE}",
-    terms:[["m","mass"],["v","speed"],["W","work done by net force"]],
-    note:"Work–energy theorem: net work equals the change in kinetic energy. The currency of terminal effect.",
-    q:"How much kinetic energy does a 0.4 kg interceptor carry at 60 m/s, and what does that tell you about defeating the target?",
-    a:"KE = ½ × 0.4 × 60² = 720 J. That energy budget is what's available to deform, fragment, or disable on impact — compare it against what the target can absorb." },
-
-  { cat:"Energy", eq:"P = Fv = \\tau\\omega",
-    terms:[["P","power"],["F","force"],["v","velocity"],["\\tau","torque"],["\\omega","angular rate"]],
-    note:"Power is force times the speed it acts at. Links motor torque/rpm to thrust and flight speed.",
-    q:"A motor delivers 2 N·m at 5000 rpm. What's its mechanical power output?",
-    a:"ω = 5000 × 2π/60 ≈ 524 rad/s. P = τω = 2 × 524 ≈ 1047 W ≈ 1.05 kW. Divide by motor efficiency to get the electrical draw." },
-
-  { cat:"Vibrations", eq:"\\omega_n = \\sqrt{\\dfrac{k}{m}}",
-    terms:[["\\omega_n","natural frequency (rad/s)"],["k","stiffness"],["m","mass"]],
-    note:"f_n = ω_n/2π. Keep this clear of the rotor passing frequency or you get resonance and fatigue.",
-    q:"A camera mount (0.1 kg) on a bracket of stiffness 4000 N/m — what's its natural frequency, and why care?",
-    a:"ω_n = √(4000/0.1) = 200 rad/s → f_n ≈ 32 Hz. If a rotor spins near 32 rev/s the mount resonates, blurring footage and fatiguing the bracket. Stiffen or add mass to shift f_n away." },
-
-  { cat:"Vibrations", eq:"\\zeta = \\dfrac{c}{2\\sqrt{km}}",
-    terms:[["\\zeta","damping ratio"],["c","damping coefficient"],["k","stiffness"],["m","mass"]],
-    note:"ζ<1 underdamped (oscillates), =1 critical (fastest no overshoot), >1 overdamped. Tune actuators/mounts near critical.",
-    q:"Why might you design a gimbal control loop or vibration mount for ζ slightly below 1 rather than exactly 1?",
-    a:"Critical damping gives the fastest settle with no overshoot, but slightly underdamped (ζ≈0.6–0.8) often settles faster overall with a small, acceptable overshoot — a deliberate speed/overshoot trade." },
-
-  { cat:"Stress & Strain", eq:"\\sigma = E\\varepsilon,\\quad \\sigma=\\tfrac{F}{A},\\ \\varepsilon=\\tfrac{\\Delta L}{L}",
-    terms:[["\\sigma","stress"],["E","Young's modulus"],["\\varepsilon","strain"],["F","load"],["A","area"]],
-    note:"Hooke's law — linear-elastic region ONLY. Breaks down past yield; says nothing about strength, only stiffness.",
-    q:"Two arms, same shape: one aluminium (E≈70 GPa), one CFRP (E≈130 GPa). Which deflects less under the same load, and is stiffer the same as stronger?",
-    a:"CFRP deflects less — higher E means less strain for the same stress. But stiffness (E) and strength (failure stress) are different properties; a stiff material can still fail at low load, so check both." },
-
-  { cat:"Stress & Strain", eq:"G = \\dfrac{E}{2(1+\\nu)}",
-    terms:[["G","shear modulus"],["E","Young's modulus"],["\\nu","Poisson's ratio"]],
-    note:"Links the two elastic constants for isotropic materials. With ν≈0.3, G ≈ 0.38E. Composites are anisotropic — this doesn't hold.",
-    q:"Why can't you use this relation for a carbon-fibre layup?",
-    a:"It assumes isotropy — equal properties in all directions. CFRP is anisotropic: stiffness depends on fibre orientation, so E, G and ν are direction-dependent and independent. You need the full ply-level material matrix." },
-
-  { cat:"Beams & Buckling", eq:"\\sigma = \\dfrac{My}{I}",
-    terms:[["\\sigma","bending stress"],["M","bending moment"],["y","distance from neutral axis"],["I","second moment of area"]],
-    note:"Euler–Bernoulli: plane sections stay plane, small deflection, linear-elastic. Stress is max at the outer fibre (largest y).",
-    q:"Why are drone arms often hollow tubes rather than solid rods of the same mass?",
-    a:"Bending stress falls as I rises, and I scales with the radius^4 while putting material far from the neutral axis. A hollow tube places mass at large y — high I per unit mass — so it resists bending far better than a solid rod of equal weight." },
-
-  { cat:"Beams & Buckling", eq:"\\delta = \\dfrac{PL^3}{3EI}",
-    terms:[["\\delta","tip deflection"],["P","tip load"],["L","length"],["E","modulus"],["I","2nd moment of area"]],
-    note:"Cantilever, point load at the tip — the canonical drone-arm model. Note the L³: length dominates deflection.",
-    q:"You halve a cantilevered arm's length. By what factor does tip deflection change for the same load?",
-    a:"δ ∝ L³, so halving L gives (½)³ = 1/8 the deflection. Length is by far the strongest lever on stiffness — far more than fattening the section." },
-
-  { cat:"Beams & Buckling", eq:"P_{cr} = \\dfrac{\\pi^2 EI}{(L_e)^2}",
-    terms:[["P_{cr}","critical buckling load"],["E","modulus"],["I","2nd moment of area"],["L_e","effective length"]],
-    note:"L_e = L pinned–pinned, 0.5L fixed–fixed, 2L fixed–free. Buckling is a stiffness/geometry failure — strength doesn't appear.",
-    q:"A landing leg is a slender strut. Yield strength is fine, yet it collapses on a hard landing. Why?",
-    a:"It buckled, not yielded — an instability governed by EI and length, not material strength. Increasing yield strength won't help; you need more I (fatter/hollow section) or shorter effective length / better end fixity." },
-
-  { cat:"Torsion", eq:"\\dfrac{\\tau}{r}=\\dfrac{T}{J}=\\dfrac{G\\theta}{L}",
-    terms:[["\\tau","shear stress"],["T","torque"],["J","polar 2nd moment"],["G","shear modulus"],["\\theta","twist angle"]],
-    note:"Circular shafts only. J = πd⁴/32 solid. Reaction torque from a rotor twists the arm — this sizes it.",
-    q:"A motor mount transmits rotor reaction torque down a tubular arm. What two failure modes do you check?",
-    a:"(1) Shear stress τ = Tr/J at the outer surface vs the material shear strength, and (2) angular twist θ = TL/GJ staying small enough that the rotor stays aligned. Hollow tubes give high J per mass for both." },
-
-  { cat:"Failure", eq:"\\sigma_{max}=K_t\\,\\sigma_{nom},\\quad \\text{FoS}=\\dfrac{\\sigma_{fail}}{\\sigma_{actual}}",
-    terms:[["K_t","stress concentration factor"],["\\sigma_{nom}","nominal stress"],["\\sigma_{fail}","failure stress"]],
-    note:"Holes, fillets and notches multiply local stress. Fatigue cracks almost always start at a concentration on the surface.",
-    q:"Where would you expect a repeatedly-flexed drone arm to crack first, and how do you mitigate it?",
-    a:"At the highest stress concentration — typically the bolt hole or the sharp fillet where the arm meets the body. Mitigate with generous fillet radii, polished surfaces, and avoiding holes in high-stress regions to lower K_t." },
-
-  { cat:"Failure", eq:"\\sigma_{vM}=\\sqrt{\\sigma_1^2-\\sigma_1\\sigma_2+\\sigma_2^2}",
-    terms:[["\\sigma_{vM}","von Mises stress"],["\\sigma_1,\\sigma_2","principal stresses"]],
-    note:"Ductile-yield criterion (plane stress): yields when σ_vM reaches the yield strength. Tresca is the more conservative cousin.",
-    q:"A part sees both bending and torsion at once. How do you decide if it yields?",
-    a:"Combine the stresses into the von Mises equivalent stress and compare to the yield strength. A single uniaxial check would miss the combined-loading effect; von Mises captures the multiaxial state." },
-
-  { cat:"Fluids & Aero", eq:"D = \\tfrac{1}{2}\\rho v^2 C_D A",
-    terms:[["D","drag force"],["\\rho","air density"],["v","airspeed"],["C_D","drag coefficient"],["A","reference area"]],
-    note:"Drag scales with v² — it dominates the power budget at intercept speeds and sets top speed.",
-    q:"Double an interceptor's speed. What happens to drag, and to the power needed to overcome it?",
-    a:"Drag ∝ v² → 4× the drag. Power = D·v ∝ v³ → 8× the power. This cubic wall is why top speed is so expensive in battery terms." },
-
-  { cat:"Fluids & Aero", eq:"p + \\tfrac{1}{2}\\rho v^2 + \\rho g h = \\text{const}",
-    terms:[["p","static pressure"],["\\rho","density"],["v","flow speed"],["h","height"]],
-    note:"Bernoulli — inviscid, incompressible, along a streamline. Trades pressure for speed; underlies lift and pitot airspeed.",
-    q:"A pitot tube reads a pressure difference of 800 Pa. What airspeed does that imply (ρ=1.2)?",
-    a:"Dynamic pressure ½ρv² = 800 → v = √(2×800/1.2) ≈ 36.5 m/s. That's exactly how the drone measures its own airspeed." },
-
-  { cat:"Fluids & Aero", eq:"Re = \\dfrac{\\rho v L}{\\mu}",
-    terms:[["Re","Reynolds number"],["\\rho","density"],["v","speed"],["L","characteristic length"],["\\mu","viscosity"]],
-    note:"Ratio of inertial to viscous forces. Small drones/props run at low Re where viscous effects and stall behave differently.",
-    q:"Why don't full-scale aircraft aerofoils work well when scaled down to a small drone propeller?",
-    a:"Small size and low speed mean low Re, where viscous effects dominate and flow separates earlier. Aerofoils optimised at high Re lose efficiency, so small props use sections designed for the low-Re regime." },
-
-  { cat:"Propulsion", eq:"v_i = \\sqrt{\\dfrac{T}{2\\rho A}}",
-    terms:[["v_i","induced velocity"],["T","thrust"],["\\rho","air density"],["A","rotor disk area"]],
-    note:"Hover, from momentum theory (mass flow × velocity change = thrust). Derive it — it's a classic whiteboard ask.",
-    q:"Derive the induced velocity at the rotor disk in hover from first principles.",
-    a:"Mass flow ṁ = ρA·v_i. Far downstream the wake doubles to 2v_i (actuator-disk result). Thrust = ṁ × Δv = ρA·v_i × 2v_i = 2ρA·v_i². Solve: v_i = √(T/2ρA)." },
-
-  { cat:"Propulsion", eq:"P_{ideal}=Tv_i=\\sqrt{\\dfrac{T^3}{2\\rho A}}",
-    terms:[["P_{ideal}","ideal hover power"],["T","thrust"],["A","disk area"],["\\rho","density"]],
-    note:"THE key insight: power ∝ T^1.5 and ∝ 1/√A. Bigger rotors hover far more efficiently — the heart of endurance design.",
-    q:"You can either double thrust or double rotor disk area. Which is cheaper in hover power, and what's the lesson?",
-    a:"Doubling T raises power by 2^1.5 ≈ 2.83×. Doubling A cuts power by 1/√2 ≈ 0.71×. Lesson: for endurance, the biggest, slowest-turning rotor you can fit wins — disk loading is everything." },
-
-  { cat:"Propulsion", eq:"T = C_T\\,\\rho n^2 D^4,\\quad P = C_P\\,\\rho n^3 D^5",
-    terms:[["T","thrust"],["P","power"],["n","rev/s"],["D","diameter"],["C_T,C_P","coefficients"]],
-    note:"Propeller scaling laws. Thrust ∝ D⁴, power ∝ D⁵ and rpm³ — small diameter changes have outsized effects.",
-    q:"You increase prop diameter by 20% at fixed rpm. Roughly what happens to thrust and power?",
-    a:"Thrust ∝ D⁴ → 1.2⁴ ≈ 2.07× (about double). Power ∝ D⁵ → 1.2⁵ ≈ 2.49×. A modest diameter bump is a large thrust gain but an even larger power cost — check the motor can supply it." },
-
-  { cat:"Flight Dynamics", eq:"n=\\dfrac{L}{W},\\quad r=\\dfrac{v^2}{g\\sqrt{n^2-1}}",
-    terms:[["n","load factor (g)"],["L","lift"],["W","weight"],["r","turn radius"],["v","speed"]],
-    note:"Turn performance — where interception is won or lost. Three limits cap n: structure, stall (max C_L), thrust.",
-    q:"Your interceptor can pull 6 g. At 50 m/s, what's its tightest turn radius, and what could stop it achieving that?",
-    a:"r = v²/(g√(n²−1)) = 2500/(9.81×√35) ≈ 43 m. It only achieves this if the wing can generate the lift without stalling and the motors supply enough thrust to hold speed through the turn — whichever limit binds first wins." },
-
-  { cat:"Flight Dynamics", eq:"\\dot\\psi=\\dfrac{g\\sqrt{n^2-1}}{v}",
-    terms:[["\\dot\\psi","turn rate"],["n","load factor"],["v","speed"],["g","gravity"]],
-    note:"For a given n, turn rate is HIGHER at lower speed. To out-turn a target, often the answer is to slow down, not speed up.",
-    q:"Two drones pull the same g. One is faster. Which turns at a higher rate, and what's the tactical implication?",
-    a:"The slower one — turn rate ∝ 1/v at fixed n. To win an angular fight you may deliberately bleed speed to out-rotate the target, trading energy for pointing advantage." },
-
-  { cat:"Guidance", eq:"a_{cmd}=N\\,V_c\\,\\dot\\lambda",
-    terms:[["a_{cmd}","commanded lateral accel"],["N","navigation constant (3–5)"],["V_c","closing velocity"],["\\dot\\lambda","line-of-sight rate"]],
-    note:"Proportional navigation — the core homing law. Command acceleration to drive the line-of-sight rotation rate to zero.",
-    q:"In pro-nav, what does it mean if the line-of-sight angle to the target stays constant while range closes?",
-    a:"You're on a collision course — constant bearing, decreasing range. λ̇ = 0 means zero commanded acceleration; you just hold heading and intercept. Pro-nav steers precisely to null any λ̇." },
-
-  { cat:"Power", eq:"t_{flight}\\approx\\dfrac{E\\,\\eta}{P_{hover}},\\quad E = C\\cdot V",
-    terms:[["t_{flight}","endurance"],["E","battery energy (Wh)"],["\\eta","system efficiency"],["P_{hover}","hover power"],["C","capacity (Ah)"]],
-    note:"Combine with momentum-theory hover power to size endurance. Real life: derate for reserve, never run a pack flat.",
-    q:"A 4S (≈14.8 V) 5 Ah pack flies a drone that hovers at 200 W, system efficiency 0.7. Rough endurance?",
-    a:"E = 5 × 14.8 = 74 Wh. t ≈ (74 × 0.7)/200 ≈ 0.26 h ≈ 15.5 min. Keep ~20% in reserve, so plan around 12 min usable." },
-
-  { cat:"Statics", eq:"M = Fd = |\\mathbf{r}\\times\\mathbf{F}|",
-    terms:[["F","force"],["d","perpendicular lever arm"],["\\mathbf{r}","position vector from pivot"]],
-    note:"Moment of a force. Maximised when the force is perpendicular to the lever arm; choose your pivot to eliminate unknowns.",
-    q:"Two rotors on opposite arms of a quad run slightly different thrust. How does that rotate the aircraft, and what sets the control moment?",
-    a:"A thrust difference ΔT acting at arm length d gives a net moment M = ΔT·d about the centre — this is how roll/pitch is commanded. Longer arms give more moment per unit ΔT, but also raise rotational inertia." },
-
-  { cat:"Statics", eq:"F \\le \\mu N",
-    terms:[["F","friction force"],["\\mu","coefficient of friction"],["N","normal force"]],
-    note:"Static friction reacts up to a limit μN, then slips. To first order it's independent of contact area.",
-    q:"A drone rests on a 20° launch rail. What minimum friction coefficient stops it sliding before the motors spin up?",
-    a:"On the verge of slipping, mg·sinθ = μ·mg·cosθ, so μ = tanθ = tan20° ≈ 0.36. Below that it slides — and the mass cancels out entirely." },
-
-  { cat:"Dynamics", eq:"v = u + at,\\quad s = ut + \\tfrac{1}{2}at^2",
-    terms:[["v","final velocity"],["u","initial velocity"],["a","acceleration"],["t","time"],["s","distance"]],
-    note:"Constant-acceleration kinematics with time — use when the manoeuvre duration matters.",
-    q:"An interceptor launches from rest at a constant 80 m/s². Speed and distance after 0.5 s?",
-    a:"v = 80×0.5 = 40 m/s; s = ½×80×0.5² = 10 m. The constant-accel assumption only holds while thrust ≫ drag, i.e. early in the boost." },
-
-  { cat:"Rotational", eq:"\\text{KE}=\\tfrac{1}{2}I\\omega^2,\\quad I=I_{cm}+md^2",
-    terms:[["I","moment of inertia"],["\\omega","angular rate"],["I_{cm}","inertia about centroid"],["d","axis offset"]],
-    note:"Standard values: disk ½mr², rod about its end ⅓mL². Parallel-axis theorem shifts inertia to an offset axis.",
-    q:"Why does moving the battery from the centre to the nose of a fixed-wing drone hurt pitch agility?",
-    a:"Parallel-axis: I = I_cm + md². Offsetting a heavy mass by d adds md² to the pitch inertia, so a given control moment yields less angular acceleration (α = τ/I). Keep heavy masses near the CG." },
-
-  { cat:"Energy", eq:"\\text{PE}=mgh,\\quad U_{spring}=\\tfrac{1}{2}kx^2",
-    terms:[["m","mass"],["g","gravity"],["h","height"],["k","spring stiffness"],["x","deflection"]],
-    note:"Energy conservation: KE + PE = const without losses. Elastic elements store ½kx² — the basis of energy-absorbing capture.",
-    q:"A net system uses a spring to absorb a 0.4 kg target at 25 m/s, with 0.1 m of allowed travel. What stiffness avoids bottoming out?",
-    a:"Set ½mv² = ½kx²: k = mv²/x² = 0.4×625/0.01 = 25,000 N/m. Softer needs more travel; stiffer raises peak force. The energy method skips the time history entirely." },
-
-  { cat:"Vibrations", eq:"x(t)=A\\cos(\\omega t+\\phi),\\quad \\omega_d=\\omega_n\\sqrt{1-\\zeta^2}",
-    terms:[["A","amplitude"],["\\phi","phase"],["\\omega_d","damped natural freq"],["\\omega_n","undamped natural freq"],["\\zeta","damping ratio"]],
-    note:"Free-vibration response. Damping lowers the oscillation frequency slightly and bleeds amplitude over time.",
-    q:"A lightly damped arm (ζ=0.05) rings after a knock. Is the observed frequency above or below ω_n, and by how much?",
-    a:"Below: ω_d = ω_n√(1−0.05²) ≈ 0.9987 ω_n — about 0.1% lower. For light damping the frequency shift is negligible; damping mainly governs how fast the ringing decays, not its pitch." },
-
-  { cat:"Stress & Strain", eq:"\\Delta L=\\alpha L\\,\\Delta T,\\quad \\sigma=E\\alpha\\,\\Delta T",
-    terms:[["\\alpha","thermal expansion coeff"],["L","length"],["\\Delta T","temperature change"],["\\sigma","thermal stress if constrained"]],
-    note:"Free expansion is stress-free; CONSTRAINED expansion builds stress σ = EαΔT. A common source of warping in mixed-material assemblies.",
-    q:"An aluminium bracket bolted rigidly to a CFRP frame heats up 40°C. Why might it warp or crack with no external load?",
-    a:"Their expansion coefficients differ (Al ≈ 23 µε/°C, CFRP ≈ near zero). Under constraint the mismatch generates thermal stress σ ≈ EαΔT plus bending. Allow for it with slotted holes or compliant mounts." },
-
-  { cat:"Beams & Buckling", eq:"I_{rect}=\\dfrac{bh^3}{12},\\quad I_{circle}=\\dfrac{\\pi d^4}{64}",
-    terms:[["b","width"],["h","depth"],["d","diameter"]],
-    note:"Second moment of area — how section area is distributed about the neutral axis. Note h³ and d⁴: depth/diameter dominate.",
-    q:"Same mass: deepen a rectangular spar 25% or widen it 25%. Which stiffens it more in bending?",
-    a:"Deepening — I ∝ h³ → ×1.25³ ≈ 1.95 (nearly double). Widening — I ∝ b → just ×1.25. Put material in the depth direction and load the section about its strong axis." },
-
-  { cat:"Beams & Buckling", eq:"\\dfrac{1}{R}=\\dfrac{M}{EI},\\quad \\delta=\\dfrac{5wL^4}{384EI}",
-    terms:[["R","radius of curvature"],["M","bending moment"],["w","load per unit length"],["L","span"]],
-    note:"Curvature is proportional to moment. Simply-supported UDL gives mid-span deflection — note the L⁴, span dominates everything.",
-    q:"A landing skid spans two supports under the drone's weight as a UDL. Halve the span — what happens to mid-span sag?",
-    a:"δ ∝ L⁴, so halving the span gives (½)⁴ = 1/16 the deflection. Span is the overwhelming driver — shortening it beats stiffening the section nearly every time." },
-
-  { cat:"Failure", eq:"\\dfrac{\\sigma_a}{S_e}+\\dfrac{\\sigma_m}{S_{ut}}=1",
-    terms:[["\\sigma_a","alternating stress"],["\\sigma_m","mean stress"],["S_e","endurance limit"],["S_{ut}","ultimate strength"]],
-    note:"Goodman line — combines cyclic and mean stress for fatigue life. Cracks start at surface notches; failure can occur far below yield.",
-    q:"A drone arm survives a single hard load fine but fails after a few hundred flights. What's happening, and how do you fix it?",
-    a:"Fatigue — repeated take-off/landing cycles grow a crack from a stress concentration, failing well below static strength. Reduce alternating stress, improve surface finish, add fillet radii, or choose a material with a true endurance limit." },
-
-  { cat:"Thermal", eq:"\\Delta U = Q - W",
-    terms:[["\\Delta U","change in internal energy"],["Q","heat added to system"],["W","work done by system"]],
-    note:"First law — energy bookkeeping. For electronics: the electrical power going in ends up as heat that must go somewhere.",
-    q:"An ESC dissipates 15 W as heat inside a sealed pod. In steady state, where does that energy go?",
-    a:"Steady state means ΔU = 0, so heat in = heat out: the 15 W must leave by conduction, convection and radiation to ambient. If the path can't shed 15 W, the temperature climbs until it can — or the part cooks." },
-
-  { cat:"Thermal", eq:"q=-kA\\dfrac{dT}{dx},\\quad q=hA\\,\\Delta T",
-    terms:[["q","heat-transfer rate"],["k","thermal conductivity"],["A","area"],["h","convection coefficient"],["\\Delta T","temp difference"]],
-    note:"Conduction (Fourier) through solids; convection from a surface to moving air. Propwash raises h — effectively free cooling on a drone.",
-    q:"A motor runs hot in hover but cool in fast forward flight. Why?",
-    a:"Convection q = hAΔT rises with airflow over the motor (higher h). Forward flight increases that flow, shedding the same heat at a lower ΔT. Hover leans on propwash and conduction, so it runs hotter." },
-
-  { cat:"Fluids & Aero", eq:"\\rho A v = \\text{const}",
-    terms:[["\\rho","density"],["A","cross-section area"],["v","flow speed"]],
-    note:"Conservation of mass for steady flow. Incompressible: Av = const, so flow speeds up where area narrows (and pressure falls, via Bernoulli).",
-    q:"Air accelerates through a rotor disk. By continuity, what must the slipstream area do downstream?",
-    a:"Mass flow ρAv is conserved, so as v rises in the wake the area A must shrink — the slipstream necks down behind the rotor. That contracting streamtube is the core of actuator-disk theory." },
-
-  { cat:"Fluids & Aero", eq:"L=\\tfrac{1}{2}\\rho v^2 C_L A",
-    terms:[["L","lift"],["\\rho","density"],["v","airspeed"],["C_L","lift coefficient"],["A","wing area"]],
-    note:"Lift scales with v² and with C_L (set by angle of attack, up to stall). Same form as drag — they're a matched pair.",
-    q:"A fixed-wing interceptor needs lift = 6× weight in a turn. Flying at twice stall speed, can it pull it?",
-    a:"Lift ∝ v²C_L. At 2× stall speed and max C_L, available lift is 2² = 4× weight before stalling — short of 6 g. It needs ≈√6 ≈ 2.45× stall speed to sustain that turn." },
-
-  { cat:"Fluids & Aero", eq:"M=\\dfrac{v}{a},\\quad a=\\sqrt{\\gamma R T}",
-    terms:[["M","Mach number"],["v","speed"],["a","local speed of sound"],["\\gamma","ratio of specific heats"],["T","temperature"]],
-    note:"Speed relative to the local sound speed. Compressibility matters above M≈0.3 — rotor tips reach it long before the airframe does.",
-    q:"A 12-inch prop spins at 10,000 rpm. Is tip compressibility a concern?",
-    a:"Tip speed = ω·r = (10000×2π/60)×0.152 ≈ 159 m/s. M ≈ 159/343 ≈ 0.46 — well above 0.3, so tip compressibility losses and noise are real. Big, fast props hit this before the vehicle does." },
-
-  { cat:"Propulsion", eq:"\\text{DL}=\\dfrac{T}{A},\\quad \\text{FM}=\\dfrac{P_{ideal}}{P_{actual}}",
-    terms:[["\\text{DL}","disk loading"],["T","thrust"],["A","disk area"],["\\text{FM}","figure of merit"]],
-    note:"Low disk loading = efficient hover (big rotors). Figure of merit (≈0.6–0.8) measures how close a real rotor gets to the ideal.",
-    q:"A heavy-lift drone and a racer have very different disk loadings. Which hovers more efficiently, and why?",
-    a:"The lower disk loading wins — since P_ideal ∝ √(T³/2ρA), spreading thrust over a big disk (low T/A) cuts induced power. The racer's small, highly-loaded rotors are power-hungry in hover but compact and agile." },
-
-  { cat:"Flight Dynamics", eq:"L=W,\\quad v_{stall}=\\sqrt{\\dfrac{2W}{\\rho S C_{L,max}}}",
-    terms:[["L","lift"],["W","weight"],["v_{stall}","stall speed"],["S","wing area"],["C_{L,max}","max lift coeff"]],
-    note:"In steady level flight lift balances weight. Stall speed is the slowest you can fly before C_L,max can no longer hold you up.",
-    q:"Two identical interceptors, but one carries a heavier warhead. How does that change its minimum flying speed?",
-    a:"v_stall ∝ √W, so more weight raises stall speed — it must fly faster to stay up, widening its minimum turn and shrinking the low-speed envelope. Payload mass directly costs manoeuvre margin." },
-
-  { cat:"Guidance", eq:"V_c=-\\dfrac{dR}{dt},\\quad t_{go}\\approx\\dfrac{R}{V_c}",
-    terms:[["V_c","closing velocity"],["R","range to target"],["t_{go}","time-to-intercept"]],
-    note:"Closing velocity is how fast range shrinks. Time-to-go feeds the guidance gains and terminal/fuse logic.",
-    q:"Range 600 m, closing velocity 150 m/s. Roughly how long to intercept, and why is the estimate rough?",
-    a:"t_go ≈ R/V_c = 600/150 = 4 s. It's approximate because V_c isn't constant — both vehicles manoeuvre, so range rate changes and the guidance recomputes it continuously rather than trusting one snapshot." },
-
-  { cat:"Power", eq:"P=IV,\\quad \\tau \\approx k_t I",
-    terms:[["P","electrical power"],["I","current"],["V","voltage"],["\\tau","motor torque"],["k_t","torque constant"]],
-    note:"Electrical power = current × voltage. Brushless motor torque is roughly proportional to current, so torque demand sets battery draw.",
-    q:"Torque constant 0.01 N·m/A, hover torque 0.2 N·m per motor. What current does each draw, and what's the pack implication?",
-    a:"I ≈ τ/k_t = 0.2/0.01 = 20 A per motor. Multiply by the motor count and pack voltage for hover power — and confirm the battery's C-rating can supply that current without voltage sag." },
+ {
+  "cat": "Statics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mo>∑</mo><mi>F</mi><mo>=</mo><mn>0</mn><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mo>∑</mo><mi>M</mi><mo>=</mo><mn>0</mn></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>F</mi></mrow></semantics></math>",
+    "forces acting on the body"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>M</mi></mrow></semantics></math>",
+    "moments about any point"
+   ]
+  ],
+  "note": "Static equilibrium — the basis of every free-body diagram. Choose your moment pivot to cancel an unknown.",
+  "q": "A drone arm is a horizontal rod pinned at the fuselage with a rotor thrust T at the tip, length L. What's the reaction moment at the pin?",
+  "a": "Take moments about the pin: M_pin = T·L (hogging). The pin must also react the vertical force T. Picking the pin as pivot eliminates the unknown pin force from the moment equation."
+ },
+ {
+  "cat": "Dynamics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>F</mi><mo>=</mo><mi>m</mi><mi>a</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>d</mi><mi>p</mi></mrow><mrow><mi>d</mi><mi>t</mi></mrow></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>F</mi></mrow></semantics></math>",
+    "net force"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>m</mi></mrow></semantics></math>",
+    "mass"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>a</mi></mrow></semantics></math>",
+    "acceleration"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>p</mi></mrow></semantics></math>",
+    "momentum, mv"
+   ]
+  ],
+  "note": "Newton's 2nd law. The momentum form is the honest one — it still holds when mass changes (e.g. expelled propellant).",
+  "q": "An interceptor accelerates from rest to 40 m/s in 2 s. Mass 1.5 kg. What thrust is needed, ignoring drag?",
+  "a": "a = Δv/t = 20 m/s². F = ma = 1.5 × 20 = 30 N. With drag you'd add ½ρv²C_DA, which grows with v² and dominates at the top end."
+ },
+ {
+  "cat": "Dynamics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>J</mi><mo>=</mo><mi>F</mi><mtext> </mtext><mi mathvariant=\"normal\">Δ</mi><mi>t</mi><mo>=</mo><mi mathvariant=\"normal\">Δ</mi><mi>p</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>J</mi></mrow></semantics></math>",
+    "impulse"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>F</mi></mrow></semantics></math>",
+    "average force"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi mathvariant=\"normal\">Δ</mi><mi>t</mi></mrow></semantics></math>",
+    "contact time"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi mathvariant=\"normal\">Δ</mi><mi>p</mi></mrow></semantics></math>",
+    "change in momentum"
+   ]
+  ],
+  "note": "Impulse–momentum theorem. Longer contact time → lower peak force for the same momentum change. Central to impact and capture.",
+  "q": "A 0.5 kg interceptor hits a target at 30 m/s and stops it over a 5 ms crush distance. Estimate the peak force.",
+  "a": "Δp = 0.5 × 30 = 15 kg·m/s. F ≈ Δp/Δt = 15 / 0.005 = 3000 N. The short contact time is exactly why impact forces are huge — stretch Δt (crumple zone, net) to cut peak load."
+ },
+ {
+  "cat": "Dynamics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msup><mi>v</mi><mn>2</mn></msup><mo>=</mo><msup><mi>u</mi><mn>2</mn></msup><mo>+</mo><mn>2</mn><mi>a</mi><mi>s</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "final velocity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>u</mi></mrow></semantics></math>",
+    "initial velocity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>a</mi></mrow></semantics></math>",
+    "acceleration"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>s</mi></mrow></semantics></math>",
+    "distance"
+   ]
+  ],
+  "note": "Constant-acceleration kinematics, no time term — ideal for stopping/launch distance problems.",
+  "q": "How far does a 50 m/s interceptor travel while decelerating at 100 m/s² to a 10 m/s terminal-guidance speed?",
+  "a": "s = (v²−u²)/(2a) = (10²−50²)/(2×−100) = (100−2500)/−200 = 12 m."
+ },
+ {
+  "cat": "Dynamics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>a</mi><mi>c</mi></msub><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msup><mi>v</mi><mn>2</mn></msup><mi>r</mi></mfrac></mstyle><mo>=</mo><msup><mi>ω</mi><mn>2</mn></msup><mi>r</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>a</mi><mi>c</mi></msub></mrow></semantics></math>",
+    "centripetal acceleration"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "speed"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>r</mi></mrow></semantics></math>",
+    "turn radius"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ω</mi></mrow></semantics></math>",
+    "angular rate"
+   ]
+  ],
+  "note": "Points to the centre of the turn. Divide by g to get the load factor the airframe must survive.",
+  "q": "An interceptor pulls a 30 m radius turn at 40 m/s. How many g?",
+  "a": "a_c = v²/r = 1600/30 ≈ 53 m/s² ≈ 5.4 g. The structure and any payload must be rated for that."
+ },
+ {
+  "cat": "Rotational",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>τ</mi><mo>=</mo><mi>I</mi><mi>α</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>τ</mi></mrow></semantics></math>",
+    "torque"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>I</mi></mrow></semantics></math>",
+    "mass moment of inertia"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>α</mi></mrow></semantics></math>",
+    "angular acceleration"
+   ]
+  ],
+  "note": "Rotational F=ma. A quadcopter yaws/pitches by differential rotor torque; low I means snappy attitude response.",
+  "q": "Why do racing/interceptor drones place batteries centrally and use short arms?",
+  "a": "Both shrink the moment of inertia about the roll/pitch axes (I ∝ mr²). Lower I means a given control torque produces higher α — faster, more agile attitude changes."
+ },
+ {
+  "cat": "Rotational",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>L</mi><mo>=</mo><mi>I</mi><mi>ω</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>L</mi></mrow></semantics></math>",
+    "angular momentum"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>I</mi></mrow></semantics></math>",
+    "moment of inertia"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ω</mi></mrow></semantics></math>",
+    "angular velocity"
+   ]
+  ],
+  "note": "Conserved with no external torque. Spinning rotors store L — the source of gyroscopic coupling between axes.",
+  "q": "A drone's rotors spin fast about the vertical axis. What happens when it pitches forward quickly?",
+  "a": "Gyroscopic precession: the stored rotor angular momentum resists and reacts, producing a coupled moment about the roll axis. Counter-rotating rotor pairs cancel most net L to suppress this."
+ },
+ {
+  "cat": "Energy",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mtext>KE</mtext><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"false\"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mi>m</mi><msup><mi>v</mi><mn>2</mn></msup><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>W</mi><mo>=</mo><mi mathvariant=\"normal\">Δ</mi><mtext>KE</mtext></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>m</mi></mrow></semantics></math>",
+    "mass"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "speed"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>W</mi></mrow></semantics></math>",
+    "work done by net force"
+   ]
+  ],
+  "note": "Work–energy theorem: net work equals the change in kinetic energy. The currency of terminal effect.",
+  "q": "How much kinetic energy does a 0.4 kg interceptor carry at 60 m/s, and what does that tell you about defeating the target?",
+  "a": "KE = ½ × 0.4 × 60² = 720 J. That energy budget is what's available to deform, fragment, or disable on impact — compare it against what the target can absorb."
+ },
+ {
+  "cat": "Energy",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>P</mi><mo>=</mo><mi>F</mi><mi>v</mi><mo>=</mo><mi>τ</mi><mi>ω</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>P</mi></mrow></semantics></math>",
+    "power"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>F</mi></mrow></semantics></math>",
+    "force"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "velocity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>τ</mi></mrow></semantics></math>",
+    "torque"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ω</mi></mrow></semantics></math>",
+    "angular rate"
+   ]
+  ],
+  "note": "Power is force times the speed it acts at. Links motor torque/rpm to thrust and flight speed.",
+  "q": "A motor delivers 2 N·m at 5000 rpm. What's its mechanical power output?",
+  "a": "ω = 5000 × 2π/60 ≈ 524 rad/s. P = τω = 2 × 524 ≈ 1047 W ≈ 1.05 kW. Divide by motor efficiency to get the electrical draw."
+ },
+ {
+  "cat": "Vibrations",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>ω</mi><mi>n</mi></msub><mo>=</mo><msqrt><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>k</mi><mi>m</mi></mfrac></mstyle></msqrt></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>ω</mi><mi>n</mi></msub></mrow></semantics></math>",
+    "natural frequency (rad/s)"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>k</mi></mrow></semantics></math>",
+    "stiffness"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>m</mi></mrow></semantics></math>",
+    "mass"
+   ]
+  ],
+  "note": "f_n = ω_n/2π. Keep this clear of the rotor passing frequency or you get resonance and fatigue.",
+  "q": "A camera mount (0.1 kg) on a bracket of stiffness 4000 N/m — what's its natural frequency, and why care?",
+  "a": "ω_n = √(4000/0.1) = 200 rad/s → f_n ≈ 32 Hz. If a rotor spins near 32 rev/s the mount resonates, blurring footage and fatiguing the bracket. Stiffen or add mass to shift f_n away."
+ },
+ {
+  "cat": "Vibrations",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>ζ</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>c</mi><mrow><mn>2</mn><msqrt><mrow><mi>k</mi><mi>m</mi></mrow></msqrt></mrow></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ζ</mi></mrow></semantics></math>",
+    "damping ratio"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>c</mi></mrow></semantics></math>",
+    "damping coefficient"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>k</mi></mrow></semantics></math>",
+    "stiffness"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>m</mi></mrow></semantics></math>",
+    "mass"
+   ]
+  ],
+  "note": "ζ<1 underdamped (oscillates), =1 critical (fastest no overshoot), >1 overdamped. Tune actuators/mounts near critical.",
+  "q": "Why might you design a gimbal control loop or vibration mount for ζ slightly below 1 rather than exactly 1?",
+  "a": "Critical damping gives the fastest settle with no overshoot, but slightly underdamped (ζ≈0.6–0.8) often settles faster overall with a small, acceptable overshoot — a deliberate speed/overshoot trade."
+ },
+ {
+  "cat": "Stress & Strain",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>σ</mi><mo>=</mo><mi>E</mi><mi>ε</mi><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>σ</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"false\"><mfrac><mi>F</mi><mi>A</mi></mfrac></mstyle><mo separator=\"true\">,</mo><mtext> </mtext><mi>ε</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"false\"><mfrac><mrow><mi mathvariant=\"normal\">Δ</mi><mi>L</mi></mrow><mi>L</mi></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>σ</mi></mrow></semantics></math>",
+    "stress"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>E</mi></mrow></semantics></math>",
+    "Young's modulus"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ε</mi></mrow></semantics></math>",
+    "strain"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>F</mi></mrow></semantics></math>",
+    "load"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi></mrow></semantics></math>",
+    "area"
+   ]
+  ],
+  "note": "Hooke's law — linear-elastic region ONLY. Breaks down past yield; says nothing about strength, only stiffness.",
+  "q": "Two arms, same shape: one aluminium (E≈70 GPa), one CFRP (E≈130 GPa). Which deflects less under the same load, and is stiffer the same as stronger?",
+  "a": "CFRP deflects less — higher E means less strain for the same stress. But stiffness (E) and strength (failure stress) are different properties; a stiff material can still fail at low load, so check both."
+ },
+ {
+  "cat": "Stress & Strain",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>G</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>E</mi><mrow><mn>2</mn><mo stretchy=\"false\">(</mo><mn>1</mn><mo>+</mo><mi>ν</mi><mo stretchy=\"false\">)</mo></mrow></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>G</mi></mrow></semantics></math>",
+    "shear modulus"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>E</mi></mrow></semantics></math>",
+    "Young's modulus"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ν</mi></mrow></semantics></math>",
+    "Poisson's ratio"
+   ]
+  ],
+  "note": "Links the two elastic constants for isotropic materials. With ν≈0.3, G ≈ 0.38E. Composites are anisotropic — this doesn't hold.",
+  "q": "Why can't you use this relation for a carbon-fibre layup?",
+  "a": "It assumes isotropy — equal properties in all directions. CFRP is anisotropic: stiffness depends on fibre orientation, so E, G and ν are direction-dependent and independent. You need the full ply-level material matrix."
+ },
+ {
+  "cat": "Beams & Buckling",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>σ</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>M</mi><mi>y</mi></mrow><mi>I</mi></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>σ</mi></mrow></semantics></math>",
+    "bending stress"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>M</mi></mrow></semantics></math>",
+    "bending moment"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>y</mi></mrow></semantics></math>",
+    "distance from neutral axis"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>I</mi></mrow></semantics></math>",
+    "second moment of area"
+   ]
+  ],
+  "note": "Euler–Bernoulli: plane sections stay plane, small deflection, linear-elastic. Stress is max at the outer fibre (largest y).",
+  "q": "Why are drone arms often hollow tubes rather than solid rods of the same mass?",
+  "a": "Bending stress falls as I rises, and I scales with the radius^4 while putting material far from the neutral axis. A hollow tube places mass at large y — high I per unit mass — so it resists bending far better than a solid rod of equal weight."
+ },
+ {
+  "cat": "Beams & Buckling",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>δ</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>P</mi><msup><mi>L</mi><mn>3</mn></msup></mrow><mrow><mn>3</mn><mi>E</mi><mi>I</mi></mrow></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>δ</mi></mrow></semantics></math>",
+    "tip deflection"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>P</mi></mrow></semantics></math>",
+    "tip load"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>L</mi></mrow></semantics></math>",
+    "length"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>E</mi></mrow></semantics></math>",
+    "modulus"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>I</mi></mrow></semantics></math>",
+    "2nd moment of area"
+   ]
+  ],
+  "note": "Cantilever, point load at the tip — the canonical drone-arm model. Note the L³: length dominates deflection.",
+  "q": "You halve a cantilevered arm's length. By what factor does tip deflection change for the same load?",
+  "a": "δ ∝ L³, so halving L gives (½)³ = 1/8 the deflection. Length is by far the strongest lever on stiffness — far more than fattening the section."
+ },
+ {
+  "cat": "Beams & Buckling",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>P</mi><mrow><mi>c</mi><mi>r</mi></mrow></msub><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><msup><mi>π</mi><mn>2</mn></msup><mi>E</mi><mi>I</mi></mrow><mrow><mo stretchy=\"false\">(</mo><msub><mi>L</mi><mi>e</mi></msub><msup><mo stretchy=\"false\">)</mo><mn>2</mn></msup></mrow></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>P</mi><mrow><mi>c</mi><mi>r</mi></mrow></msub></mrow></semantics></math>",
+    "critical buckling load"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>E</mi></mrow></semantics></math>",
+    "modulus"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>I</mi></mrow></semantics></math>",
+    "2nd moment of area"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>L</mi><mi>e</mi></msub></mrow></semantics></math>",
+    "effective length"
+   ]
+  ],
+  "note": "L_e = L pinned–pinned, 0.5L fixed–fixed, 2L fixed–free. Buckling is a stiffness/geometry failure — strength doesn't appear.",
+  "q": "A landing leg is a slender strut. Yield strength is fine, yet it collapses on a hard landing. Why?",
+  "a": "It buckled, not yielded — an instability governed by EI and length, not material strength. Increasing yield strength won't help; you need more I (fatter/hollow section) or shorter effective length / better end fixity."
+ },
+ {
+  "cat": "Torsion",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>τ</mi><mi>r</mi></mfrac></mstyle><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>T</mi><mi>J</mi></mfrac></mstyle><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>G</mi><mi>θ</mi></mrow><mi>L</mi></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>τ</mi></mrow></semantics></math>",
+    "shear stress"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>T</mi></mrow></semantics></math>",
+    "torque"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>J</mi></mrow></semantics></math>",
+    "polar 2nd moment"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>G</mi></mrow></semantics></math>",
+    "shear modulus"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>θ</mi></mrow></semantics></math>",
+    "twist angle"
+   ]
+  ],
+  "note": "Circular shafts only. J = πd⁴/32 solid. Reaction torque from a rotor twists the arm — this sizes it.",
+  "q": "A motor mount transmits rotor reaction torque down a tubular arm. What two failure modes do you check?",
+  "a": "(1) Shear stress τ = Tr/J at the outer surface vs the material shear strength, and (2) angular twist θ = TL/GJ staying small enough that the rotor stays aligned. Hollow tubes give high J per mass for both."
+ },
+ {
+  "cat": "Failure",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>σ</mi><mrow><mi>m</mi><mi>a</mi><mi>x</mi></mrow></msub><mo>=</mo><msub><mi>K</mi><mi>t</mi></msub><mtext> </mtext><msub><mi>σ</mi><mrow><mi>n</mi><mi>o</mi><mi>m</mi></mrow></msub><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mtext>FoS</mtext><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msub><mi>σ</mi><mrow><mi>f</mi><mi>a</mi><mi>i</mi><mi>l</mi></mrow></msub><msub><mi>σ</mi><mrow><mi>a</mi><mi>c</mi><mi>t</mi><mi>u</mi><mi>a</mi><mi>l</mi></mrow></msub></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>K</mi><mi>t</mi></msub></mrow></semantics></math>",
+    "stress concentration factor"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mrow><mi>n</mi><mi>o</mi><mi>m</mi></mrow></msub></mrow></semantics></math>",
+    "nominal stress"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mrow><mi>f</mi><mi>a</mi><mi>i</mi><mi>l</mi></mrow></msub></mrow></semantics></math>",
+    "failure stress"
+   ]
+  ],
+  "note": "Holes, fillets and notches multiply local stress. Fatigue cracks almost always start at a concentration on the surface.",
+  "q": "Where would you expect a repeatedly-flexed drone arm to crack first, and how do you mitigate it?",
+  "a": "At the highest stress concentration — typically the bolt hole or the sharp fillet where the arm meets the body. Mitigate with generous fillet radii, polished surfaces, and avoiding holes in high-stress regions to lower K_t."
+ },
+ {
+  "cat": "Failure",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>σ</mi><mrow><mi>v</mi><mi>M</mi></mrow></msub><mo>=</mo><msqrt><mrow><msubsup><mi>σ</mi><mn>1</mn><mn>2</mn></msubsup><mo>−</mo><msub><mi>σ</mi><mn>1</mn></msub><msub><mi>σ</mi><mn>2</mn></msub><mo>+</mo><msubsup><mi>σ</mi><mn>2</mn><mn>2</mn></msubsup></mrow></msqrt></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mrow><mi>v</mi><mi>M</mi></mrow></msub></mrow></semantics></math>",
+    "von Mises stress"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mn>1</mn></msub><mo separator=\"true\">,</mo><msub><mi>σ</mi><mn>2</mn></msub></mrow></semantics></math>",
+    "principal stresses"
+   ]
+  ],
+  "note": "Ductile-yield criterion (plane stress): yields when σ_vM reaches the yield strength. Tresca is the more conservative cousin.",
+  "q": "A part sees both bending and torsion at once. How do you decide if it yields?",
+  "a": "Combine the stresses into the von Mises equivalent stress and compare to the yield strength. A single uniaxial check would miss the combined-loading effect; von Mises captures the multiaxial state."
+ },
+ {
+  "cat": "Fluids & Aero",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>D</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"false\"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mi>ρ</mi><msup><mi>v</mi><mn>2</mn></msup><msub><mi>C</mi><mi>D</mi></msub><mi>A</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>D</mi></mrow></semantics></math>",
+    "drag force"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ρ</mi></mrow></semantics></math>",
+    "air density"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "airspeed"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>C</mi><mi>D</mi></msub></mrow></semantics></math>",
+    "drag coefficient"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi></mrow></semantics></math>",
+    "reference area"
+   ]
+  ],
+  "note": "Drag scales with v² — it dominates the power budget at intercept speeds and sets top speed.",
+  "q": "Double an interceptor's speed. What happens to drag, and to the power needed to overcome it?",
+  "a": "Drag ∝ v² → 4× the drag. Power = D·v ∝ v³ → 8× the power. This cubic wall is why top speed is so expensive in battery terms."
+ },
+ {
+  "cat": "Fluids & Aero",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>p</mi><mo>+</mo><mstyle scriptlevel=\"0\" displaystyle=\"false\"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mi>ρ</mi><msup><mi>v</mi><mn>2</mn></msup><mo>+</mo><mi>ρ</mi><mi>g</mi><mi>h</mi><mo>=</mo><mtext>const</mtext></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>p</mi></mrow></semantics></math>",
+    "static pressure"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ρ</mi></mrow></semantics></math>",
+    "density"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "flow speed"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>h</mi></mrow></semantics></math>",
+    "height"
+   ]
+  ],
+  "note": "Bernoulli — inviscid, incompressible, along a streamline. Trades pressure for speed; underlies lift and pitot airspeed.",
+  "q": "A pitot tube reads a pressure difference of 800 Pa. What airspeed does that imply (ρ=1.2)?",
+  "a": "Dynamic pressure ½ρv² = 800 → v = √(2×800/1.2) ≈ 36.5 m/s. That's exactly how the drone measures its own airspeed."
+ },
+ {
+  "cat": "Fluids & Aero",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>R</mi><mi>e</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>ρ</mi><mi>v</mi><mi>L</mi></mrow><mi>μ</mi></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>R</mi><mi>e</mi></mrow></semantics></math>",
+    "Reynolds number"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ρ</mi></mrow></semantics></math>",
+    "density"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "speed"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>L</mi></mrow></semantics></math>",
+    "characteristic length"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>μ</mi></mrow></semantics></math>",
+    "viscosity"
+   ]
+  ],
+  "note": "Ratio of inertial to viscous forces. Small drones/props run at low Re where viscous effects and stall behave differently.",
+  "q": "Why don't full-scale aircraft aerofoils work well when scaled down to a small drone propeller?",
+  "a": "Small size and low speed mean low Re, where viscous effects dominate and flow separates earlier. Aerofoils optimised at high Re lose efficiency, so small props use sections designed for the low-Re regime."
+ },
+ {
+  "cat": "Propulsion",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>v</mi><mi>i</mi></msub><mo>=</mo><msqrt><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>T</mi><mrow><mn>2</mn><mi>ρ</mi><mi>A</mi></mrow></mfrac></mstyle></msqrt></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>v</mi><mi>i</mi></msub></mrow></semantics></math>",
+    "induced velocity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>T</mi></mrow></semantics></math>",
+    "thrust"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ρ</mi></mrow></semantics></math>",
+    "air density"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi></mrow></semantics></math>",
+    "rotor disk area"
+   ]
+  ],
+  "note": "Hover, from momentum theory (mass flow × velocity change = thrust). Derive it — it's a classic whiteboard ask.",
+  "q": "Derive the induced velocity at the rotor disk in hover from first principles.",
+  "a": "Mass flow ṁ = ρA·v_i. Far downstream the wake doubles to 2v_i (actuator-disk result). Thrust = ṁ × Δv = ρA·v_i × 2v_i = 2ρA·v_i². Solve: v_i = √(T/2ρA)."
+ },
+ {
+  "cat": "Propulsion",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>P</mi><mrow><mi>i</mi><mi>d</mi><mi>e</mi><mi>a</mi><mi>l</mi></mrow></msub><mo>=</mo><mi>T</mi><msub><mi>v</mi><mi>i</mi></msub><mo>=</mo><msqrt><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msup><mi>T</mi><mn>3</mn></msup><mrow><mn>2</mn><mi>ρ</mi><mi>A</mi></mrow></mfrac></mstyle></msqrt></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>P</mi><mrow><mi>i</mi><mi>d</mi><mi>e</mi><mi>a</mi><mi>l</mi></mrow></msub></mrow></semantics></math>",
+    "ideal hover power"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>T</mi></mrow></semantics></math>",
+    "thrust"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi></mrow></semantics></math>",
+    "disk area"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ρ</mi></mrow></semantics></math>",
+    "density"
+   ]
+  ],
+  "note": "THE key insight: power ∝ T^1.5 and ∝ 1/√A. Bigger rotors hover far more efficiently — the heart of endurance design.",
+  "q": "You can either double thrust or double rotor disk area. Which is cheaper in hover power, and what's the lesson?",
+  "a": "Doubling T raises power by 2^1.5 ≈ 2.83×. Doubling A cuts power by 1/√2 ≈ 0.71×. Lesson: for endurance, the biggest, slowest-turning rotor you can fit wins — disk loading is everything."
+ },
+ {
+  "cat": "Propulsion",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>T</mi><mo>=</mo><msub><mi>C</mi><mi>T</mi></msub><mtext> </mtext><mi>ρ</mi><msup><mi>n</mi><mn>2</mn></msup><msup><mi>D</mi><mn>4</mn></msup><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>P</mi><mo>=</mo><msub><mi>C</mi><mi>P</mi></msub><mtext> </mtext><mi>ρ</mi><msup><mi>n</mi><mn>3</mn></msup><msup><mi>D</mi><mn>5</mn></msup></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>T</mi></mrow></semantics></math>",
+    "thrust"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>P</mi></mrow></semantics></math>",
+    "power"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>n</mi></mrow></semantics></math>",
+    "rev/s"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>D</mi></mrow></semantics></math>",
+    "diameter"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>C</mi><mi>T</mi></msub><mo separator=\"true\">,</mo><msub><mi>C</mi><mi>P</mi></msub></mrow></semantics></math>",
+    "coefficients"
+   ]
+  ],
+  "note": "Propeller scaling laws. Thrust ∝ D⁴, power ∝ D⁵ and rpm³ — small diameter changes have outsized effects.",
+  "q": "You increase prop diameter by 20% at fixed rpm. Roughly what happens to thrust and power?",
+  "a": "Thrust ∝ D⁴ → 1.2⁴ ≈ 2.07× (about double). Power ∝ D⁵ → 1.2⁵ ≈ 2.49×. A modest diameter bump is a large thrust gain but an even larger power cost — check the motor can supply it."
+ },
+ {
+  "cat": "Flight Dynamics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>n</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>L</mi><mi>W</mi></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>r</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msup><mi>v</mi><mn>2</mn></msup><mrow><mi>g</mi><msqrt><mrow><msup><mi>n</mi><mn>2</mn></msup><mo>−</mo><mn>1</mn></mrow></msqrt></mrow></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>n</mi></mrow></semantics></math>",
+    "load factor (g)"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>L</mi></mrow></semantics></math>",
+    "lift"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>W</mi></mrow></semantics></math>",
+    "weight"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>r</mi></mrow></semantics></math>",
+    "turn radius"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "speed"
+   ]
+  ],
+  "note": "Turn performance — where interception is won or lost. Three limits cap n: structure, stall (max C_L), thrust.",
+  "q": "Your interceptor can pull 6 g. At 50 m/s, what's its tightest turn radius, and what could stop it achieving that?",
+  "a": "r = v²/(g√(n²−1)) = 2500/(9.81×√35) ≈ 43 m. It only achieves this if the wing can generate the lift without stalling and the motors supply enough thrust to hold speed through the turn — whichever limit binds first wins."
+ },
+ {
+  "cat": "Flight Dynamics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mover accent=\"true\"><mi>ψ</mi><mo>˙</mo></mover><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>g</mi><msqrt><mrow><msup><mi>n</mi><mn>2</mn></msup><mo>−</mo><mn>1</mn></mrow></msqrt></mrow><mi>v</mi></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mover accent=\"true\"><mi>ψ</mi><mo>˙</mo></mover></mrow></semantics></math>",
+    "turn rate"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>n</mi></mrow></semantics></math>",
+    "load factor"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "speed"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>g</mi></mrow></semantics></math>",
+    "gravity"
+   ]
+  ],
+  "note": "For a given n, turn rate is HIGHER at lower speed. To out-turn a target, often the answer is to slow down, not speed up.",
+  "q": "Two drones pull the same g. One is faster. Which turns at a higher rate, and what's the tactical implication?",
+  "a": "The slower one — turn rate ∝ 1/v at fixed n. To win an angular fight you may deliberately bleed speed to out-rotate the target, trading energy for pointing advantage."
+ },
+ {
+  "cat": "Guidance",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>a</mi><mrow><mi>c</mi><mi>m</mi><mi>d</mi></mrow></msub><mo>=</mo><mi>N</mi><mtext> </mtext><msub><mi>V</mi><mi>c</mi></msub><mtext> </mtext><mover accent=\"true\"><mi>λ</mi><mo>˙</mo></mover></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>a</mi><mrow><mi>c</mi><mi>m</mi><mi>d</mi></mrow></msub></mrow></semantics></math>",
+    "commanded lateral accel"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>N</mi></mrow></semantics></math>",
+    "navigation constant (3–5)"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>V</mi><mi>c</mi></msub></mrow></semantics></math>",
+    "closing velocity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mover accent=\"true\"><mi>λ</mi><mo>˙</mo></mover></mrow></semantics></math>",
+    "line-of-sight rate"
+   ]
+  ],
+  "note": "Proportional navigation — the core homing law. Command acceleration to drive the line-of-sight rotation rate to zero.",
+  "q": "In pro-nav, what does it mean if the line-of-sight angle to the target stays constant while range closes?",
+  "a": "You're on a collision course — constant bearing, decreasing range. λ̇ = 0 means zero commanded acceleration; you just hold heading and intercept. Pro-nav steers precisely to null any λ̇."
+ },
+ {
+  "cat": "Power",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>t</mi><mrow><mi>f</mi><mi>l</mi><mi>i</mi><mi>g</mi><mi>h</mi><mi>t</mi></mrow></msub><mo>≈</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>E</mi><mtext> </mtext><mi>η</mi></mrow><msub><mi>P</mi><mrow><mi>h</mi><mi>o</mi><mi>v</mi><mi>e</mi><mi>r</mi></mrow></msub></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>E</mi><mo>=</mo><mi>C</mi><mo>⋅</mo><mi>V</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>t</mi><mrow><mi>f</mi><mi>l</mi><mi>i</mi><mi>g</mi><mi>h</mi><mi>t</mi></mrow></msub></mrow></semantics></math>",
+    "endurance"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>E</mi></mrow></semantics></math>",
+    "battery energy (Wh)"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>η</mi></mrow></semantics></math>",
+    "system efficiency"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>P</mi><mrow><mi>h</mi><mi>o</mi><mi>v</mi><mi>e</mi><mi>r</mi></mrow></msub></mrow></semantics></math>",
+    "hover power"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>C</mi></mrow></semantics></math>",
+    "capacity (Ah)"
+   ]
+  ],
+  "note": "Combine with momentum-theory hover power to size endurance. Real life: derate for reserve, never run a pack flat.",
+  "q": "A 4S (≈14.8 V) 5 Ah pack flies a drone that hovers at 200 W, system efficiency 0.7. Rough endurance?",
+  "a": "E = 5 × 14.8 = 74 Wh. t ≈ (74 × 0.7)/200 ≈ 0.26 h ≈ 15.5 min. Keep ~20% in reserve, so plan around 12 min usable."
+ },
+ {
+  "cat": "Statics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>M</mi><mo>=</mo><mi>F</mi><mi>d</mi><mo>=</mo><mi mathvariant=\"normal\">∣</mi><mi mathvariant=\"bold\">r</mi><mo>×</mo><mi mathvariant=\"bold\">F</mi><mi mathvariant=\"normal\">∣</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>F</mi></mrow></semantics></math>",
+    "force"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>d</mi></mrow></semantics></math>",
+    "perpendicular lever arm"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi mathvariant=\"bold\">r</mi></mrow></semantics></math>",
+    "position vector from pivot"
+   ]
+  ],
+  "note": "Moment of a force. Maximised when the force is perpendicular to the lever arm; choose your pivot to eliminate unknowns.",
+  "q": "Two rotors on opposite arms of a quad run slightly different thrust. How does that rotate the aircraft, and what sets the control moment?",
+  "a": "A thrust difference ΔT acting at arm length d gives a net moment M = ΔT·d about the centre — this is how roll/pitch is commanded. Longer arms give more moment per unit ΔT, but also raise rotational inertia."
+ },
+ {
+  "cat": "Statics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>F</mi><mo>≤</mo><mi>μ</mi><mi>N</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>F</mi></mrow></semantics></math>",
+    "friction force"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>μ</mi></mrow></semantics></math>",
+    "coefficient of friction"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>N</mi></mrow></semantics></math>",
+    "normal force"
+   ]
+  ],
+  "note": "Static friction reacts up to a limit μN, then slips. To first order it's independent of contact area.",
+  "q": "A drone rests on a 20° launch rail. What minimum friction coefficient stops it sliding before the motors spin up?",
+  "a": "On the verge of slipping, mg·sinθ = μ·mg·cosθ, so μ = tanθ = tan20° ≈ 0.36. Below that it slides — and the mass cancels out entirely."
+ },
+ {
+  "cat": "Dynamics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>v</mi><mo>=</mo><mi>u</mi><mo>+</mo><mi>a</mi><mi>t</mi><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>s</mi><mo>=</mo><mi>u</mi><mi>t</mi><mo>+</mo><mstyle scriptlevel=\"0\" displaystyle=\"false\"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mi>a</mi><msup><mi>t</mi><mn>2</mn></msup></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "final velocity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>u</mi></mrow></semantics></math>",
+    "initial velocity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>a</mi></mrow></semantics></math>",
+    "acceleration"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>t</mi></mrow></semantics></math>",
+    "time"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>s</mi></mrow></semantics></math>",
+    "distance"
+   ]
+  ],
+  "note": "Constant-acceleration kinematics with time — use when the manoeuvre duration matters.",
+  "q": "An interceptor launches from rest at a constant 80 m/s². Speed and distance after 0.5 s?",
+  "a": "v = 80×0.5 = 40 m/s; s = ½×80×0.5² = 10 m. The constant-accel assumption only holds while thrust ≫ drag, i.e. early in the boost."
+ },
+ {
+  "cat": "Rotational",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mtext>KE</mtext><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"false\"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mi>I</mi><msup><mi>ω</mi><mn>2</mn></msup><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>I</mi><mo>=</mo><msub><mi>I</mi><mrow><mi>c</mi><mi>m</mi></mrow></msub><mo>+</mo><mi>m</mi><msup><mi>d</mi><mn>2</mn></msup></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>I</mi></mrow></semantics></math>",
+    "moment of inertia"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ω</mi></mrow></semantics></math>",
+    "angular rate"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>I</mi><mrow><mi>c</mi><mi>m</mi></mrow></msub></mrow></semantics></math>",
+    "inertia about centroid"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>d</mi></mrow></semantics></math>",
+    "axis offset"
+   ]
+  ],
+  "note": "Standard values: disk ½mr², rod about its end ⅓mL². Parallel-axis theorem shifts inertia to an offset axis.",
+  "q": "Why does moving the battery from the centre to the nose of a fixed-wing drone hurt pitch agility?",
+  "a": "Parallel-axis: I = I_cm + md². Offsetting a heavy mass by d adds md² to the pitch inertia, so a given control moment yields less angular acceleration (α = τ/I). Keep heavy masses near the CG."
+ },
+ {
+  "cat": "Energy",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mtext>PE</mtext><mo>=</mo><mi>m</mi><mi>g</mi><mi>h</mi><mo separator=\"true\">,</mo><mspace width=\"1em\"/><msub><mi>U</mi><mrow><mi>s</mi><mi>p</mi><mi>r</mi><mi>i</mi><mi>n</mi><mi>g</mi></mrow></msub><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"false\"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mi>k</mi><msup><mi>x</mi><mn>2</mn></msup></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>m</mi></mrow></semantics></math>",
+    "mass"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>g</mi></mrow></semantics></math>",
+    "gravity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>h</mi></mrow></semantics></math>",
+    "height"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>k</mi></mrow></semantics></math>",
+    "spring stiffness"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>x</mi></mrow></semantics></math>",
+    "deflection"
+   ]
+  ],
+  "note": "Energy conservation: KE + PE = const without losses. Elastic elements store ½kx² — the basis of energy-absorbing capture.",
+  "q": "A net system uses a spring to absorb a 0.4 kg target at 25 m/s, with 0.1 m of allowed travel. What stiffness avoids bottoming out?",
+  "a": "Set ½mv² = ½kx²: k = mv²/x² = 0.4×625/0.01 = 25,000 N/m. Softer needs more travel; stiffer raises peak force. The energy method skips the time history entirely."
+ },
+ {
+  "cat": "Vibrations",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>x</mi><mo stretchy=\"false\">(</mo><mi>t</mi><mo stretchy=\"false\">)</mo><mo>=</mo><mi>A</mi><mi>cos</mi><mo>⁡</mo><mo stretchy=\"false\">(</mo><mi>ω</mi><mi>t</mi><mo>+</mo><mi>ϕ</mi><mo stretchy=\"false\">)</mo><mo separator=\"true\">,</mo><mspace width=\"1em\"/><msub><mi>ω</mi><mi>d</mi></msub><mo>=</mo><msub><mi>ω</mi><mi>n</mi></msub><msqrt><mrow><mn>1</mn><mo>−</mo><msup><mi>ζ</mi><mn>2</mn></msup></mrow></msqrt></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi></mrow></semantics></math>",
+    "amplitude"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ϕ</mi></mrow></semantics></math>",
+    "phase"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>ω</mi><mi>d</mi></msub></mrow></semantics></math>",
+    "damped natural freq"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>ω</mi><mi>n</mi></msub></mrow></semantics></math>",
+    "undamped natural freq"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ζ</mi></mrow></semantics></math>",
+    "damping ratio"
+   ]
+  ],
+  "note": "Free-vibration response. Damping lowers the oscillation frequency slightly and bleeds amplitude over time.",
+  "q": "A lightly damped arm (ζ=0.05) rings after a knock. Is the observed frequency above or below ω_n, and by how much?",
+  "a": "Below: ω_d = ω_n√(1−0.05²) ≈ 0.9987 ω_n — about 0.1% lower. For light damping the frequency shift is negligible; damping mainly governs how fast the ringing decays, not its pitch."
+ },
+ {
+  "cat": "Stress & Strain",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi mathvariant=\"normal\">Δ</mi><mi>L</mi><mo>=</mo><mi>α</mi><mi>L</mi><mtext> </mtext><mi mathvariant=\"normal\">Δ</mi><mi>T</mi><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>σ</mi><mo>=</mo><mi>E</mi><mi>α</mi><mtext> </mtext><mi mathvariant=\"normal\">Δ</mi><mi>T</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>α</mi></mrow></semantics></math>",
+    "thermal expansion coeff"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>L</mi></mrow></semantics></math>",
+    "length"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi mathvariant=\"normal\">Δ</mi><mi>T</mi></mrow></semantics></math>",
+    "temperature change"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>σ</mi></mrow></semantics></math>",
+    "thermal stress if constrained"
+   ]
+  ],
+  "note": "Free expansion is stress-free; CONSTRAINED expansion builds stress σ = EαΔT. A common source of warping in mixed-material assemblies.",
+  "q": "An aluminium bracket bolted rigidly to a CFRP frame heats up 40°C. Why might it warp or crack with no external load?",
+  "a": "Their expansion coefficients differ (Al ≈ 23 µε/°C, CFRP ≈ near zero). Under constraint the mismatch generates thermal stress σ ≈ EαΔT plus bending. Allow for it with slotted holes or compliant mounts."
+ },
+ {
+  "cat": "Beams & Buckling",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>I</mi><mrow><mi>r</mi><mi>e</mi><mi>c</mi><mi>t</mi></mrow></msub><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>b</mi><msup><mi>h</mi><mn>3</mn></msup></mrow><mn>12</mn></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><msub><mi>I</mi><mrow><mi>c</mi><mi>i</mi><mi>r</mi><mi>c</mi><mi>l</mi><mi>e</mi></mrow></msub><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>π</mi><msup><mi>d</mi><mn>4</mn></msup></mrow><mn>64</mn></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>b</mi></mrow></semantics></math>",
+    "width"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>h</mi></mrow></semantics></math>",
+    "depth"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>d</mi></mrow></semantics></math>",
+    "diameter"
+   ]
+  ],
+  "note": "Second moment of area — how section area is distributed about the neutral axis. Note h³ and d⁴: depth/diameter dominate.",
+  "q": "Same mass: deepen a rectangular spar 25% or widen it 25%. Which stiffens it more in bending?",
+  "a": "Deepening — I ∝ h³ → ×1.25³ ≈ 1.95 (nearly double). Widening — I ∝ b → just ×1.25. Put material in the depth direction and load the section about its strong axis."
+ },
+ {
+  "cat": "Beams & Buckling",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mn>1</mn><mi>R</mi></mfrac></mstyle><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>M</mi><mrow><mi>E</mi><mi>I</mi></mrow></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>δ</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mn>5</mn><mi>w</mi><msup><mi>L</mi><mn>4</mn></msup></mrow><mrow><mn>384</mn><mi>E</mi><mi>I</mi></mrow></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>R</mi></mrow></semantics></math>",
+    "radius of curvature"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>M</mi></mrow></semantics></math>",
+    "bending moment"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>w</mi></mrow></semantics></math>",
+    "load per unit length"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>L</mi></mrow></semantics></math>",
+    "span"
+   ]
+  ],
+  "note": "Curvature is proportional to moment. Simply-supported UDL gives mid-span deflection — note the L⁴, span dominates everything.",
+  "q": "A landing skid spans two supports under the drone's weight as a UDL. Halve the span — what happens to mid-span sag?",
+  "a": "δ ∝ L⁴, so halving the span gives (½)⁴ = 1/16 the deflection. Span is the overwhelming driver — shortening it beats stiffening the section nearly every time."
+ },
+ {
+  "cat": "Failure",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msub><mi>σ</mi><mi>a</mi></msub><msub><mi>S</mi><mi>e</mi></msub></mfrac></mstyle><mo>+</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msub><mi>σ</mi><mi>m</mi></msub><msub><mi>S</mi><mrow><mi>u</mi><mi>t</mi></mrow></msub></mfrac></mstyle><mo>=</mo><mn>1</mn></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mi>a</mi></msub></mrow></semantics></math>",
+    "alternating stress"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mi>m</mi></msub></mrow></semantics></math>",
+    "mean stress"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>S</mi><mi>e</mi></msub></mrow></semantics></math>",
+    "endurance limit"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>S</mi><mrow><mi>u</mi><mi>t</mi></mrow></msub></mrow></semantics></math>",
+    "ultimate strength"
+   ]
+  ],
+  "note": "Goodman line — combines cyclic and mean stress for fatigue life. Cracks start at surface notches; failure can occur far below yield.",
+  "q": "A drone arm survives a single hard load fine but fails after a few hundred flights. What's happening, and how do you fix it?",
+  "a": "Fatigue — repeated take-off/landing cycles grow a crack from a stress concentration, failing well below static strength. Reduce alternating stress, improve surface finish, add fillet radii, or choose a material with a true endurance limit."
+ },
+ {
+  "cat": "Thermal",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi mathvariant=\"normal\">Δ</mi><mi>U</mi><mo>=</mo><mi>Q</mi><mo>−</mo><mi>W</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi mathvariant=\"normal\">Δ</mi><mi>U</mi></mrow></semantics></math>",
+    "change in internal energy"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>Q</mi></mrow></semantics></math>",
+    "heat added to system"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>W</mi></mrow></semantics></math>",
+    "work done by system"
+   ]
+  ],
+  "note": "First law — energy bookkeeping. For electronics: the electrical power going in ends up as heat that must go somewhere.",
+  "q": "An ESC dissipates 15 W as heat inside a sealed pod. In steady state, where does that energy go?",
+  "a": "Steady state means ΔU = 0, so heat in = heat out: the 15 W must leave by conduction, convection and radiation to ambient. If the path can't shed 15 W, the temperature climbs until it can — or the part cooks."
+ },
+ {
+  "cat": "Thermal",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>q</mi><mo>=</mo><mo>−</mo><mi>k</mi><mi>A</mi><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>d</mi><mi>T</mi></mrow><mrow><mi>d</mi><mi>x</mi></mrow></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>q</mi><mo>=</mo><mi>h</mi><mi>A</mi><mtext> </mtext><mi mathvariant=\"normal\">Δ</mi><mi>T</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>q</mi></mrow></semantics></math>",
+    "heat-transfer rate"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>k</mi></mrow></semantics></math>",
+    "thermal conductivity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi></mrow></semantics></math>",
+    "area"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>h</mi></mrow></semantics></math>",
+    "convection coefficient"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi mathvariant=\"normal\">Δ</mi><mi>T</mi></mrow></semantics></math>",
+    "temp difference"
+   ]
+  ],
+  "note": "Conduction (Fourier) through solids; convection from a surface to moving air. Propwash raises h — effectively free cooling on a drone.",
+  "q": "A motor runs hot in hover but cool in fast forward flight. Why?",
+  "a": "Convection q = hAΔT rises with airflow over the motor (higher h). Forward flight increases that flow, shedding the same heat at a lower ΔT. Hover leans on propwash and conduction, so it runs hotter."
+ },
+ {
+  "cat": "Fluids & Aero",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>ρ</mi><mi>A</mi><mi>v</mi><mo>=</mo><mtext>const</mtext></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ρ</mi></mrow></semantics></math>",
+    "density"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi></mrow></semantics></math>",
+    "cross-section area"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "flow speed"
+   ]
+  ],
+  "note": "Conservation of mass for steady flow. Incompressible: Av = const, so flow speeds up where area narrows (and pressure falls, via Bernoulli).",
+  "q": "Air accelerates through a rotor disk. By continuity, what must the slipstream area do downstream?",
+  "a": "Mass flow ρAv is conserved, so as v rises in the wake the area A must shrink — the slipstream necks down behind the rotor. That contracting streamtube is the core of actuator-disk theory."
+ },
+ {
+  "cat": "Fluids & Aero",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>L</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"false\"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mi>ρ</mi><msup><mi>v</mi><mn>2</mn></msup><msub><mi>C</mi><mi>L</mi></msub><mi>A</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>L</mi></mrow></semantics></math>",
+    "lift"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ρ</mi></mrow></semantics></math>",
+    "density"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "airspeed"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>C</mi><mi>L</mi></msub></mrow></semantics></math>",
+    "lift coefficient"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi></mrow></semantics></math>",
+    "wing area"
+   ]
+  ],
+  "note": "Lift scales with v² and with C_L (set by angle of attack, up to stall). Same form as drag — they're a matched pair.",
+  "q": "A fixed-wing interceptor needs lift = 6× weight in a turn. Flying at twice stall speed, can it pull it?",
+  "a": "Lift ∝ v²C_L. At 2× stall speed and max C_L, available lift is 2² = 4× weight before stalling — short of 6 g. It needs ≈√6 ≈ 2.45× stall speed to sustain that turn."
+ },
+ {
+  "cat": "Fluids & Aero",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>M</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>v</mi><mi>a</mi></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>a</mi><mo>=</mo><msqrt><mrow><mi>γ</mi><mi>R</mi><mi>T</mi></mrow></msqrt></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>M</mi></mrow></semantics></math>",
+    "Mach number"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>v</mi></mrow></semantics></math>",
+    "speed"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>a</mi></mrow></semantics></math>",
+    "local speed of sound"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>γ</mi></mrow></semantics></math>",
+    "ratio of specific heats"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>T</mi></mrow></semantics></math>",
+    "temperature"
+   ]
+  ],
+  "note": "Speed relative to the local sound speed. Compressibility matters above M≈0.3 — rotor tips reach it long before the airframe does.",
+  "q": "A 12-inch prop spins at 10,000 rpm. Is tip compressibility a concern?",
+  "a": "Tip speed = ω·r = (10000×2π/60)×0.152 ≈ 159 m/s. M ≈ 159/343 ≈ 0.46 — well above 0.3, so tip compressibility losses and noise are real. Big, fast props hit this before the vehicle does."
+ },
+ {
+  "cat": "Propulsion",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mtext>DL</mtext><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>T</mi><mi>A</mi></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mtext>FM</mtext><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msub><mi>P</mi><mrow><mi>i</mi><mi>d</mi><mi>e</mi><mi>a</mi><mi>l</mi></mrow></msub><msub><mi>P</mi><mrow><mi>a</mi><mi>c</mi><mi>t</mi><mi>u</mi><mi>a</mi><mi>l</mi></mrow></msub></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mtext>DL</mtext></mrow></semantics></math>",
+    "disk loading"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>T</mi></mrow></semantics></math>",
+    "thrust"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi></mrow></semantics></math>",
+    "disk area"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mtext>FM</mtext></mrow></semantics></math>",
+    "figure of merit"
+   ]
+  ],
+  "note": "Low disk loading = efficient hover (big rotors). Figure of merit (≈0.6–0.8) measures how close a real rotor gets to the ideal.",
+  "q": "A heavy-lift drone and a racer have very different disk loadings. Which hovers more efficiently, and why?",
+  "a": "The lower disk loading wins — since P_ideal ∝ √(T³/2ρA), spreading thrust over a big disk (low T/A) cuts induced power. The racer's small, highly-loaded rotors are power-hungry in hover but compact and agile."
+ },
+ {
+  "cat": "Flight Dynamics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>L</mi><mo>=</mo><mi>W</mi><mo separator=\"true\">,</mo><mspace width=\"1em\"/><msub><mi>v</mi><mrow><mi>s</mi><mi>t</mi><mi>a</mi><mi>l</mi><mi>l</mi></mrow></msub><mo>=</mo><msqrt><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mn>2</mn><mi>W</mi></mrow><mrow><mi>ρ</mi><mi>S</mi><msub><mi>C</mi><mrow><mi>L</mi><mo separator=\"true\">,</mo><mi>m</mi><mi>a</mi><mi>x</mi></mrow></msub></mrow></mfrac></mstyle></msqrt></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>L</mi></mrow></semantics></math>",
+    "lift"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>W</mi></mrow></semantics></math>",
+    "weight"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>v</mi><mrow><mi>s</mi><mi>t</mi><mi>a</mi><mi>l</mi><mi>l</mi></mrow></msub></mrow></semantics></math>",
+    "stall speed"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>S</mi></mrow></semantics></math>",
+    "wing area"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>C</mi><mrow><mi>L</mi><mo separator=\"true\">,</mo><mi>m</mi><mi>a</mi><mi>x</mi></mrow></msub></mrow></semantics></math>",
+    "max lift coeff"
+   ]
+  ],
+  "note": "In steady level flight lift balances weight. Stall speed is the slowest you can fly before C_L,max can no longer hold you up.",
+  "q": "Two identical interceptors, but one carries a heavier warhead. How does that change its minimum flying speed?",
+  "a": "v_stall ∝ √W, so more weight raises stall speed — it must fly faster to stay up, widening its minimum turn and shrinking the low-speed envelope. Payload mass directly costs manoeuvre margin."
+ },
+ {
+  "cat": "Guidance",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>V</mi><mi>c</mi></msub><mo>=</mo><mo>−</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>d</mi><mi>R</mi></mrow><mrow><mi>d</mi><mi>t</mi></mrow></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><msub><mi>t</mi><mrow><mi>g</mi><mi>o</mi></mrow></msub><mo>≈</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>R</mi><msub><mi>V</mi><mi>c</mi></msub></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>V</mi><mi>c</mi></msub></mrow></semantics></math>",
+    "closing velocity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>R</mi></mrow></semantics></math>",
+    "range to target"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>t</mi><mrow><mi>g</mi><mi>o</mi></mrow></msub></mrow></semantics></math>",
+    "time-to-intercept"
+   ]
+  ],
+  "note": "Closing velocity is how fast range shrinks. Time-to-go feeds the guidance gains and terminal/fuse logic.",
+  "q": "Range 600 m, closing velocity 150 m/s. Roughly how long to intercept, and why is the estimate rough?",
+  "a": "t_go ≈ R/V_c = 600/150 = 4 s. It's approximate because V_c isn't constant — both vehicles manoeuvre, so range rate changes and the guidance recomputes it continuously rather than trusting one snapshot."
+ },
+ {
+  "cat": "Power",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>P</mi><mo>=</mo><mi>I</mi><mi>V</mi><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>τ</mi><mo>≈</mo><msub><mi>k</mi><mi>t</mi></msub><mi>I</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>P</mi></mrow></semantics></math>",
+    "electrical power"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>I</mi></mrow></semantics></math>",
+    "current"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>V</mi></mrow></semantics></math>",
+    "voltage"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>τ</mi></mrow></semantics></math>",
+    "motor torque"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>k</mi><mi>t</mi></msub></mrow></semantics></math>",
+    "torque constant"
+   ]
+  ],
+  "note": "Electrical power = current × voltage. Brushless motor torque is roughly proportional to current, so torque demand sets battery draw.",
+  "q": "Torque constant 0.01 N·m/A, hover torque 0.2 N·m per motor. What current does each draw, and what's the pack implication?",
+  "a": "I ≈ τ/k_t = 0.2/0.01 = 20 A per motor. Multiply by the motor count and pack voltage for hover power — and confirm the battery's C-rating can supply that current without voltage sag."
+ }
 ];
 
 /* =====================================================================
@@ -520,11 +1440,6 @@ function buildOrder(shuffle){
 const stage = document.getElementById('stage');
 const counter = document.getElementById('counter');
 
-function renderMath(tex, el, display){
-  try{ window.katex.render(tex, el, {throwOnError:false, displayMode:!!display}); }
-  catch(e){ el.textContent = tex; }
-}
-
 function render(direction){
   const total = state.order.length;
   counter.textContent = total ? `${state.pos+1} / ${total}` : "0 / 0";
@@ -547,7 +1462,7 @@ function render(direction){
           <button class="star" data-on="${state.flagged.has(ci)?1:0}" id="star">★</button>
         </div>
         <div class="body">
-          <div class="eqn" id="eqn"></div>
+          <div class="eqn">${c.eq}</div>
           <div class="lbl">Terms</div>
           <div class="terms" id="terms"></div>
           <div class="note" style="--c:${color}">${c.note}</div>
@@ -569,12 +1484,11 @@ function render(direction){
       </div>
     </div>`;
 
-  // render maths
-  renderMath(c.eq, document.getElementById('eqn'), true);
+  // terms: inject pre-rendered MathML (equation is already in the template)
   const tEl = document.getElementById('terms');
   c.terms.forEach(([sym,def])=>{
     const row=document.createElement('div'); row.className='term';
-    const s=document.createElement('span'); s.className='sym'; renderMath(sym,s,false);
+    const s=document.createElement('span'); s.className='sym'; s.innerHTML=sym;
     const d=document.createElement('span'); d.className='def'; d.textContent=def;
     row.append(s,d); tEl.append(row);
   });
@@ -648,26 +1562,9 @@ window.addEventListener('keydown',e=>{
 /* derive a short title per card from its category for the band */
 CARDS.forEach(c=>{ c.title = c.cat; });
 
-/* Is KaTeX actually usable? (loaded AND able to produce real output) */
-function katexWorks(){
-  if(!window.katex || typeof window.katex.render!=='function') return false;
-  try{
-    const probe=document.createElement('span');
-    window.katex.render('x^2', probe, {throwOnError:false});
-    return !!probe.querySelector('.katex');
-  }catch(e){ return false; }
-}
-
-/* boot — build the deck immediately, then render once KaTeX is verified working.
-   Retries for a while; if it never loads (e.g. CDN blocked offline) the cards
-   still show their LaTeX source rather than nothing. */
+/* boot — equations are pre-rendered MathML, so just build and draw immediately */
 (function boot(){
-  buildOrder(false); buildChips();
-  let tries=0;
-  (function waitForKatex(){
-    if(katexWorks() || window.__katexFailed || tries>150){ render(1); return; }
-    tries++; setTimeout(waitForKatex,40);
-  })();
+  buildOrder(false); buildChips(); render(1);
 })();
 
 /* Offline caching is temporarily disabled while we confirm rendering works.
@@ -684,23 +1581,32 @@ if('serviceWorker' in navigator){
 <!-- =====================================================================
      DEPLOY NOTES (to make this a home-screen app on iPhone)
 
+     This version is SELF-CONTAINED: every equation is pre-rendered to native
+     MathML and embedded in this file. No KaTeX, no math library, nothing
+     fetched at runtime to render the maths. The only external request is the
+     Google Fonts stylesheet for the display font — and if that's blocked the
+     app falls back to the system font and still works.
+
      Ship these files together in ONE folder:
         index.html  (THIS file — rename equation-cards.html -> index.html)
         manifest.json
         sw.js
         icon-180.png  icon-192.png  icon-512.png  icon-maskable-512.png
-     The manifest link, apple-touch-icon, and service-worker registration
-     are already wired into this file — no further HTML edits needed.
 
-     1. Rename this file to index.html so the start_url ("." ) resolves to it
-        and the service worker's navigation fallback works.
-     2. Host the folder over HTTPS (required for SW + a clean install):
+     1. Rename this file to index.html so start_url ("." ) resolves to it.
+     2. Host the folder over HTTPS:
           - Netlify: drag the folder onto  app.netlify.com/drop  -> instant URL
           - or push to a GitHub repo and enable GitHub Pages.
      3. On iPhone: open the URL in Safari -> Share -> "Add to Home Screen".
-        It launches fullscreen with its own icon. Load it once on wifi and the
-        service worker caches KaTeX + fonts, so it then works offline (e.g. on
-        the train with no signal).
+
+     OFFLINE / SERVICE WORKER: currently DISABLED on purpose. The app actively
+     unregisters any old service worker and clears its caches on load, so a
+     device that cached an earlier (broken) build heals itself. The shipped
+     sw.js is a kill-switch that does the same. Once you confirm the maths
+     renders cleanly on the live site, ask and I'll add a fresh offline worker
+     that simply caches this one self-contained file — robust now that there's
+     no CDN dependency to go opaque.
+
      4. To persist starred cards across sessions, swap the in-memory Set in the
         STATE block above for localStorage:
           load -> state.flagged = new Set(JSON.parse(localStorage.getItem('flags')||'[]'))
