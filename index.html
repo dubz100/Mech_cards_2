@@ -639,20 +639,24 @@ const CARDS = [
  },
  {
   "cat": "Failure",
-  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>σ</mi><mrow><mi>v</mi><mi>M</mi></mrow></msub><mo>=</mo><msqrt><mrow><msubsup><mi>σ</mi><mn>1</mn><mn>2</mn></msubsup><mo>−</mo><msub><mi>σ</mi><mn>1</mn></msub><msub><mi>σ</mi><mn>2</mn></msub><mo>+</mo><msubsup><mi>σ</mi><mn>2</mn><mn>2</mn></msubsup></mrow></msqrt></mrow></semantics></math>",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>σ</mi><mrow><mi>v</mi><mi>M</mi></mrow></msub><mo>=</mo><msqrt><mrow><msup><mi>σ</mi><mn>2</mn></msup><mo>+</mo><mn>3</mn><msup><mi>τ</mi><mn>2</mn></msup></mrow></msqrt></mrow></semantics></math>",
   "terms": [
    [
     "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mrow><mi>v</mi><mi>M</mi></mrow></msub></mrow></semantics></math>",
-    "von Mises stress"
+    "von Mises equivalent stress"
    ],
    [
-    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mn>1</mn></msub><mo separator=\"true\">,</mo><msub><mi>σ</mi><mn>2</mn></msub></mrow></semantics></math>",
-    "principal stresses"
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>σ</mi></mrow></semantics></math>",
+    "direct (bending) stress"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>τ</mi></mrow></semantics></math>",
+    "shear (torsional) stress"
    ]
   ],
-  "note": "Ductile-yield criterion (plane stress): yields when σ_vM reaches the yield strength. Tresca is the more conservative cousin.",
+  "note": "Ductile-yield criterion for combined bending + torsion (a direct stress σ acting with shear τ). Yields when σ_vM reaches the yield strength. The general plane-stress form uses principal stresses; Tresca is the conservative cousin.",
   "q": "A part sees both bending and torsion at once. How do you decide if it yields?",
-  "a": "Combine the stresses into the von Mises equivalent stress and compare to the yield strength. A single uniaxial check would miss the combined-loading effect; von Mises captures the multiaxial state."
+  "a": "Use the von Mises equivalent stress √(σ²+3τ²), folding the bending stress σ and torsional shear τ into one number, then compare it to the yield strength. Checking each stress on its own would miss how they compound under combined loading."
  },
  {
   "cat": "Fluids & Aero",
@@ -1406,6 +1410,218 @@ const CARDS = [
   "note": "Electrical power = current × voltage. Brushless motor torque is roughly proportional to current, so torque demand sets battery draw.",
   "q": "Torque constant 0.01 N·m/A, hover torque 0.2 N·m per motor. What current does each draw, and what's the pack implication?",
   "a": "I ≈ τ/k_t = 0.2/0.01 = 20 A per motor. Multiply by the motor count and pack voltage for hover power — and confirm the battery's C-rating can supply that current without voltage sag."
+ },
+ {
+  "cat": "Beams & Buckling",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>d</mi><mi>V</mi></mrow><mrow><mi>d</mi><mi>x</mi></mrow></mfrac></mstyle><mo>=</mo><mo>−</mo><mi>w</mi><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>d</mi><mi>M</mi></mrow><mrow><mi>d</mi><mi>x</mi></mrow></mfrac></mstyle><mo>=</mo><mi>V</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>V</mi></mrow></semantics></math>",
+    "shear force"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>w</mi></mrow></semantics></math>",
+    "distributed load per length"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>M</mi></mrow></semantics></math>",
+    "bending moment"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>x</mi></mrow></semantics></math>",
+    "position along the beam"
+   ]
+  ],
+  "note": "Slope of the shear diagram is minus the load; slope of the moment diagram is the shear. The moment peaks where shear crosses zero — that's where you check stress.",
+  "q": "A cantilever drone arm carries rotor thrust T at its tip. Sketch the shear and bending-moment diagrams and say where it fails.",
+  "a": "With no distributed load, shear is constant at V = T along the arm. Moment rises linearly from zero at the tip to M = TL at the root. Peak moment is at the root, so bending stress σ = My/I is highest there — exactly where you'd add a fillet or thicken the section."
+ },
+ {
+  "cat": "Stress & Strain",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>E</mi><mi>ρ</mi></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msub><mi>σ</mi><mi>y</mi></msub><mi>ρ</mi></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>E</mi></mrow></semantics></math>",
+    "Young's modulus"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ρ</mi></mrow></semantics></math>",
+    "density"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mi>y</mi></msub></mrow></semantics></math>",
+    "yield strength"
+   ]
+  ],
+  "note": "Specific stiffness and specific strength — stiffness/strength per unit weight, THE aerospace material metric. CFRP wins on both, which is why it displaces aluminium despite the cost.",
+  "q": "Aluminium and a CFRP layup can have similar absolute stiffness, so why does aerospace reach for carbon fibre?",
+  "a": "On specific stiffness E/ρ, CFRP is far ahead — roughly 100+ GPa at ~1.6 g/cc versus aluminium's 70 GPa at 2.7 g/cc. For a weight-critical structure you care about stiffness and strength per kilogram, not absolute values, and that's where composites win decisively."
+ },
+ {
+  "cat": "Fluids & Aero",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>C</mi><mrow><mi>D</mi><mo separator=\"true\">,</mo><mi>i</mi></mrow></msub><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msubsup><mi>C</mi><mi>L</mi><mn>2</mn></msubsup><mrow><mi>π</mi><mtext> </mtext><mi>A</mi><mi>R</mi><mtext> </mtext><mi>e</mi></mrow></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mi>A</mi><mi>R</mi><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msup><mi>b</mi><mn>2</mn></msup><mi>S</mi></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>C</mi><mrow><mi>D</mi><mo separator=\"true\">,</mo><mi>i</mi></mrow></msub></mrow></semantics></math>",
+    "induced drag coefficient"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>C</mi><mi>L</mi></msub></mrow></semantics></math>",
+    "lift coefficient"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi><mi>R</mi></mrow></semantics></math>",
+    "aspect ratio"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>e</mi></mrow></semantics></math>",
+    "Oswald efficiency"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>b</mi></mrow></semantics></math>",
+    "wingspan"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>S</mi></mrow></semantics></math>",
+    "wing area"
+   ]
+  ],
+  "note": "Induced (lift-dependent) drag falls as aspect ratio rises — long thin wings are efficient. It grows with the SQUARE of C_L, so it dominates when slow and in hard turns.",
+  "q": "Why do long-endurance surveillance drones have long slender wings, while an agile interceptor often doesn't?",
+  "a": "High aspect ratio cuts induced drag (C_{D,i} ∝ 1/AR), maximising endurance. An interceptor trades that for low roll inertia, structural robustness under high-g, and agility — a short stiff wing turns and survives loads better even if it's less aerodynamically efficient."
+ },
+ {
+  "cat": "Stress & Strain",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><msub><mi>σ</mi><mi>θ</mi></msub><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>p</mi><mi>r</mi></mrow><mi>t</mi></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><msub><mi>σ</mi><mrow><mi>l</mi><mi>o</mi><mi>n</mi><mi>g</mi></mrow></msub><mo>=</mo><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mrow><mi>p</mi><mi>r</mi></mrow><mrow><mn>2</mn><mi>t</mi></mrow></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mi>θ</mi></msub></mrow></semantics></math>",
+    "hoop (circumferential) stress"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>σ</mi><mrow><mi>l</mi><mi>o</mi><mi>n</mi><mi>g</mi></mrow></msub></mrow></semantics></math>",
+    "longitudinal stress"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>p</mi></mrow></semantics></math>",
+    "internal pressure"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>r</mi></mrow></semantics></math>",
+    "radius"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>t</mi></mrow></semantics></math>",
+    "wall thickness"
+   ]
+  ],
+  "note": "Thin-wall pressure vessel (valid for t < ~r/10). Hoop stress is TWICE the longitudinal — pressurised tubes split along their length, not around the circumference.",
+  "q": "A pneumatic net-launcher uses a pressurised cylinder. Which way does it burst, and what do you size the wall on?",
+  "a": "It fails by splitting lengthwise, because hoop stress (pr/t) is twice the longitudinal stress (pr/2t). Size the wall thickness on the hoop stress and watch any longitudinal weld or seam — that's the line the hoop stress is trying to tear open."
+ },
+ {
+  "cat": "Rotational",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>τ</mi><mo>=</mo><mi>I</mi><mi>ω</mi><mtext> </mtext><mi mathvariant=\"normal\">Ω</mi></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>τ</mi></mrow></semantics></math>",
+    "gyroscopic reaction moment"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>I</mi></mrow></semantics></math>",
+    "rotor moment of inertia"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ω</mi></mrow></semantics></math>",
+    "rotor spin rate"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi mathvariant=\"normal\">Ω</mi></mrow></semantics></math>",
+    "precession (turn) rate"
+   ]
+  ],
+  "note": "A spinning rotor forced to change orientation reacts with a moment 90° to the applied one. Counter-rotating rotor pairs cancel net angular momentum to suppress this.",
+  "q": "A single large rotor is yawed rapidly. What unwanted motion appears, and how do multirotors avoid it?",
+  "a": "Gyroscopic precession: the reaction moment is perpendicular to the commanded rotation, so a yaw input bleeds into pitch or roll. Multirotors run counter-rotating rotor pairs so net angular momentum is near zero and the precession terms cancel out."
+ },
+ {
+  "cat": "Flight Dynamics",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>W</mi><mi>S</mi></mfrac></mstyle><mo separator=\"true\">,</mo><mspace width=\"1em\"/><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><mi>T</mi><mi>W</mi></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>W</mi></mrow></semantics></math>",
+    "weight"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>S</mi></mrow></semantics></math>",
+    "wing area"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>T</mi></mrow></semantics></math>",
+    "thrust"
+   ]
+  ],
+  "note": "The two numbers that set an aircraft's character. Low wing loading W/S = slower, tighter-turning; high thrust-to-weight T/W = strong acceleration and climb. Interceptors want high T/W.",
+  "q": "What does a high thrust-to-weight ratio buy an interceptor, and what does a low wing loading buy it?",
+  "a": "High T/W gives acceleration, climb rate, and the ability to hold speed through a hard turn (the thrust limit on load factor). Low wing loading lowers stall speed and tightens the achievable turn (the aerodynamic limit). Together they decide how aggressively it can chase and corner."
+ },
+ {
+  "cat": "Thermal",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi>q</mi><mo>=</mo><mi>ε</mi><mi>σ</mi><mi>A</mi><mtext> </mtext><mo stretchy=\"false\">(</mo><msup><mi>T</mi><mn>4</mn></msup><mo>−</mo><msubsup><mi>T</mi><mrow><mi>s</mi><mi>u</mi><mi>r</mi><mi>r</mi></mrow><mn>4</mn></msubsup><mo stretchy=\"false\">)</mo></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>q</mi></mrow></semantics></math>",
+    "radiated heat rate"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>ε</mi></mrow></semantics></math>",
+    "emissivity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>σ</mi></mrow></semantics></math>",
+    "Stefan–Boltzmann constant"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A</mi></mrow></semantics></math>",
+    "surface area"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>T</mi></mrow></semantics></math>",
+    "surface temp (K)"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>T</mi><mrow><mi>s</mi><mi>u</mi><mi>r</mi><mi>r</mi></mrow></msub></mrow></semantics></math>",
+    "surroundings temp (K)"
+   ]
+  ],
+  "note": "The third heat path alongside conduction and convection. The 4th-power law (in kelvin) means radiation only bites at high temperature — small for warm electronics, dominant for very hot parts.",
+  "q": "Why can you usually ignore radiation when cooling an ESC, but not a much hotter component?",
+  "a": "Radiation goes as absolute temperature to the fourth power, so at warm-electronics temps (~330 K) it's tiny next to convection. A much hotter part drives T⁴ up steeply until radiation becomes a major — sometimes dominant — loss path."
+ },
+ {
+  "cat": "Propulsion",
+  "eq": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mi mathvariant=\"normal\">Δ</mi><mi>v</mi><mo>=</mo><msub><mi>v</mi><mi>e</mi></msub><mi>ln</mi><mo>⁡</mo><mtext> ⁣</mtext><mstyle scriptlevel=\"0\" displaystyle=\"true\"><mfrac><msub><mi>m</mi><mn>0</mn></msub><msub><mi>m</mi><mi>f</mi></msub></mfrac></mstyle></mrow></semantics></math>",
+  "terms": [
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi mathvariant=\"normal\">Δ</mi><mi>v</mi></mrow></semantics></math>",
+    "achievable velocity change"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>v</mi><mi>e</mi></msub></mrow></semantics></math>",
+    "effective exhaust velocity"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>m</mi><mn>0</mn></msub></mrow></semantics></math>",
+    "initial (wet) mass"
+   ],
+   [
+    "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>m</mi><mi>f</mi></msub></mrow></semantics></math>",
+    "final (dry) mass"
+   ]
+  ],
+  "note": "Tsiolkovsky rocket equation — applies to any propellant-expelling boost stage. Δv depends on the mass RATIO logarithmically, so there are sharp diminishing returns on carrying more fuel.",
+  "q": "If a rocket-boosted interceptor needs more Δv, why isn't simply carrying more propellant a cheap fix?",
+  "a": "Δv scales with the log of the mass ratio, so gains fade fast — doubling propellant doesn't double Δv. The extra propellant also adds tankage and mass that must itself be accelerated. Raising exhaust velocity v_e (better propellant or nozzle) is usually the stronger lever."
  }
 ];
 
@@ -1493,6 +1709,20 @@ function render(direction){
     row.append(s,d); tEl.append(row);
   });
   if(state.revealed) document.getElementById('answer').classList.add('show');
+
+  // auto-fit: shrink the equation only if it would overflow the card width
+  const eqEl = stage.querySelector('.eqn');
+  const mathEl = eqEl && eqEl.querySelector('math');
+  if(mathEl){
+    requestAnimationFrame(()=>{
+      const avail = eqEl.clientWidth - 24;
+      const natural = mathEl.scrollWidth;
+      if(natural > avail && natural > 0){
+        const scale = Math.max(0.55, avail / natural);
+        mathEl.style.fontSize = (1.5 * scale) + 'rem';
+      }
+    });
+  }
 
   wireCard();
 }
